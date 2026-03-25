@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "CaloraTmp",
-    "slug": "CaloraTmp",
-    "version": "1.0.0",
+    "name": "Calora",
+    "slug": "calora",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -12,7 +12,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.calora.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "package": "com.calora.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

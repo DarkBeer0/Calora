@@ -1,6 +1,6 @@
 {
-  "name": "caloratmp",
-  "version": "1.0.0",
+  "name": "calora",
+  "version": "0.1.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
