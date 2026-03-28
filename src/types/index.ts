@@ -22,6 +22,10 @@ export interface FoodItem {
   proteinPer100g: number;
   fatPer100g: number;
   carbsPer100g: number;
+  fiberPer100g: number;
+  sugarsPer100g: number;
+  saturatedFatPer100g: number;
+  saltPer100g: number;
   barcode?: string;
   source: 'openfoodfacts' | 'custom';
 }
@@ -37,6 +41,10 @@ export interface MealEntry {
   protein: number;
   fat: number;
   carbs: number;
+  fiber: number;
+  sugars: number;
+  saturatedFat: number;
+  salt: number;
   createdAt: string;
 }
 
@@ -46,5 +54,20 @@ export interface DailySummary {
   totalProtein: number;
   totalFat: number;
   totalCarbs: number;
+  totalFiber: number;
+  totalSugars: number;
+  totalSaturatedFat: number;
+  totalSalt: number;
   meals: MealEntry[];
+}
+
+export interface ExerciseEntry {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  exerciseType: string; // key from EXERCISES constant
+  name: string;
+  durationMin: number;
+  caloriesBurned: number;
+  createdAt: string;
 }

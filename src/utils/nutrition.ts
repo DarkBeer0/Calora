@@ -26,12 +26,28 @@ export function calculateDailyTarget(profile: UserProfile): NutritionTarget {
   return { calories, protein, fat, carbs };
 }
 
-export function calculateNutrition(foodItem: { caloriesPer100g: number; proteinPer100g: number; fatPer100g: number; carbsPer100g: number }, grams: number) {
+interface FoodNutrients {
+  caloriesPer100g: number;
+  proteinPer100g: number;
+  fatPer100g: number;
+  carbsPer100g: number;
+  fiberPer100g: number;
+  sugarsPer100g: number;
+  saturatedFatPer100g: number;
+  saltPer100g: number;
+}
+
+export function calculateNutrition(foodItem: FoodNutrients, grams: number) {
   const ratio = grams / 100;
+  const r = (v: number) => Math.round(v * ratio * 10) / 10;
   return {
     calories: Math.round(foodItem.caloriesPer100g * ratio),
-    protein: Math.round(foodItem.proteinPer100g * ratio * 10) / 10,
-    fat: Math.round(foodItem.fatPer100g * ratio * 10) / 10,
-    carbs: Math.round(foodItem.carbsPer100g * ratio * 10) / 10,
+    protein: r(foodItem.proteinPer100g),
+    fat: r(foodItem.fatPer100g),
+    carbs: r(foodItem.carbsPer100g),
+    fiber: r(foodItem.fiberPer100g),
+    sugars: r(foodItem.sugarsPer100g),
+    saturatedFat: r(foodItem.saturatedFatPer100g),
+    salt: r(foodItem.saltPer100g),
   };
 }

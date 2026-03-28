@@ -12,6 +12,10 @@ export const COLORS = {
   protein: '#2196F3',
   fat: '#FF5722',
   carbs: '#4CAF50',
+  fiber: '#8BC34A',
+  sugars: '#E91E63',
+  saturatedFat: '#FF7043',
+  salt: '#78909C',
 } as const;
 
 export const SPACING = {

@@ -14,6 +14,14 @@ export const GOALS = {
   gain: { label: 'Набор массы', offset: 300 },
 } as const;
 
+// Daily recommended values (WHO / РФ norms)
+export const DAILY_MICRO_TARGETS = {
+  fiber: 25,          // г — ВОЗ рекомендация
+  sugars: 50,         // г — максимум (ВОЗ: <10% от калорий)
+  saturatedFat: 20,   // г — максимум (~10% от 2000 ккал)
+  salt: 5,            // г — максимум ВОЗ
+} as const;
+
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
 export const MEAL_LABELS: Record<string, string> = {
