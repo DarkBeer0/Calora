@@ -38,10 +38,29 @@ export function useMeals() {
     await persist(updated);
   }, [allMeals, persist]);
 
+  // Update meal
+  const updateMeal = useCallback(async (entry: MealEntry) => {
+    const updated = allMeals.map((m) => m.id === entry.id ? entry : m);
+    await persist(updated);
+  }, [allMeals, persist]);
+
   // Get meals for a specific date
   const getMealsForDate = useCallback((date: string): MealEntry[] => {
     return allMeals.filter((m) => m.date === date);
   }, [allMeals]);
+
+  // Copy meals from a date to today
+  const copyMealsToToday = useCallback(async (date: string) => {
+    const meals = getMealsForDate(date);
+    const today = todayKey();
+    const copies = meals.map((m) => ({
+      ...m,
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      date: today,
+      createdAt: new Date().toISOString(),
+    }));
+    await persist([...allMeals, ...copies]);
+  }, [allMeals, getMealsForDate, persist]);
 
   // Get today's meals
   const todayMeals = getMealsForDate(todayKey());
@@ -68,6 +87,11 @@ export function useMeals() {
   // Get unique dates that have meals (for history)
   const datesWithMeals = [...new Set(allMeals.map((m) => m.date))].sort().reverse();
 
+  const refresh = useCallback(async () => {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (raw) setAllMeals(JSON.parse(raw));
+  }, []);
+
   return {
     allMeals,
     todayMeals,
@@ -75,8 +99,11 @@ export function useMeals() {
     datesWithMeals,
     addMeal,
     deleteMeal,
+    updateMeal,
+    copyMealsToToday,
     getMealsForDate,
     getDailySummary,
     isLoading,
+    refresh,
   };
 }

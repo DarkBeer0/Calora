@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,12 +7,16 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Keyboard,
+  SectionList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
+import { SPACING, FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../i18n';
+import { useDebounce } from '../hooks/useDebounce';
+import { useFoods } from '../hooks/useFoods';
 import { searchProducts } from '../services/openfoodfacts';
 import type { FoodItem } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -21,246 +25,179 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AddMealScreen() {
   const navigation = useNavigation<Nav>();
+  const { colors } = useTheme();
+  const { t } = useI18n();
+  const { recentFoods, favoriteFoods } = useFoods();
+
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const handleSearch = useCallback(async () => {
-    const trimmed = query.trim();
-    if (!trimmed) return;
+  const debouncedQuery = useDebounce(query.trim(), 500);
 
-    Keyboard.dismiss();
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+
+    let cancelled = false;
     setIsSearching(true);
     setSearched(true);
 
-    try {
-      const items = await searchProducts(trimmed);
-      setResults(items);
-    } catch {
-      setResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [query]);
+    searchProducts(debouncedQuery)
+      .then((items) => { if (!cancelled) setResults(items); })
+      .catch(() => { if (!cancelled) setResults([]); })
+      .finally(() => { if (!cancelled) setIsSearching(false); });
+
+    return () => { cancelled = true; };
+  }, [debouncedQuery]);
 
   const handleSelect = (food: FoodItem) => {
     navigation.navigate('ConfirmMeal', { food });
   };
 
+  const renderFoodCard = (item: FoodItem) => (
+    <TouchableOpacity
+      style={[styles.foodCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={() => handleSelect(item)}
+    >
+      <View style={styles.foodInfo}>
+        <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
+        <Text style={[styles.foodKcal, { color: colors.textSecondary }]}>{item.caloriesPer100g} {t('add_meal_per100g')}</Text>
+      </View>
+      <View style={styles.foodMacros}>
+        <Text style={[styles.macroChip, { color: colors.protein }]}>P {item.proteinPer100g}</Text>
+        <Text style={[styles.macroChip, { color: colors.fat }]}>F {item.fatPer100g}</Text>
+        <Text style={[styles.macroChip, { color: colors.carbs }]}>C {item.carbsPer100g}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.border} />
+    </TouchableOpacity>
+  );
+
+  // Show recent/favorites when no query
+  const showBrowse = !query.trim() && !searched;
+  const sections = [];
+  if (favoriteFoods.length > 0) {
+    sections.push({ title: t('favorite_foods'), data: favoriteFoods });
+  }
+  if (recentFoods.length > 0) {
+    sections.push({ title: t('recent_foods'), data: recentFoods });
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Search bar */}
       <View style={styles.searchRow}>
-        <View style={styles.inputWrapper}>
-          <Ionicons name="search" size={20} color={COLORS.textSecondary} />
+        <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} />
           <TextInput
-            style={styles.input}
-            placeholder="Поиск продукта..."
-            placeholderTextColor={COLORS.textSecondary}
+            style={[styles.input, { color: colors.text }]}
+            placeholder={t('add_meal_search_placeholder')}
+            placeholderTextColor={colors.textSecondary}
             value={query}
             onChangeText={setQuery}
-            onSubmitEditing={handleSearch}
             returnKeyType="search"
             autoFocus
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setSearched(false); }}>
-              <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
-          <Text style={styles.searchBtnText}>Найти</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Quick actions */}
       <View style={styles.actionsRow}>
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => navigation.navigate('BarcodeScanner')}
         >
-          <Ionicons name="barcode-outline" size={22} color={COLORS.primary} />
-          <Text style={styles.actionText}>Штрих-код</Text>
+          <Ionicons name="barcode-outline" size={22} color={colors.primary} />
+          <Text style={[styles.actionText, { color: colors.primary }]}>{t('add_meal_barcode')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => navigation.navigate('AddCustomFood', {})}
         >
-          <Ionicons name="create-outline" size={22} color={COLORS.primary} />
-          <Text style={styles.actionText}>Вручную</Text>
+          <Ionicons name="create-outline" size={22} color={colors.primary} />
+          <Text style={[styles.actionText, { color: colors.primary }]}>{t('add_meal_manual')}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Results */}
+      {/* Content */}
       {isSearching ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.searchingText}>Поиск...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.searchingText, { color: colors.textSecondary }]}>{t('add_meal_searching')}</Text>
         </View>
+      ) : showBrowse ? (
+        sections.length > 0 ? (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            renderSectionHeader={({ section: { title } }) => (
+              <Text style={[styles.sectionHeader, { color: colors.text }]}>{title}</Text>
+            )}
+            renderItem={({ item }) => renderFoodCard(item)}
+          />
+        ) : (
+          <View style={styles.centered}>
+            <Ionicons name="fast-food-outline" size={48} color={colors.border} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('add_meal_enter_name')}</Text>
+          </View>
+        )
       ) : results.length > 0 ? (
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.foodCard} onPress={() => handleSelect(item)}>
-              <View style={styles.foodInfo}>
-                <Text style={styles.foodName} numberOfLines={2}>{item.name}</Text>
-                <Text style={styles.foodKcal}>{item.caloriesPer100g} ккал / 100г</Text>
-              </View>
-              <View style={styles.foodMacros}>
-                <Text style={[styles.macroChip, { color: COLORS.protein }]}>Б {item.proteinPer100g}</Text>
-                <Text style={[styles.macroChip, { color: COLORS.fat }]}>Ж {item.fatPer100g}</Text>
-                <Text style={[styles.macroChip, { color: COLORS.carbs }]}>У {item.carbsPer100g}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.border} />
-            </TouchableOpacity>
-          )}
+          renderItem={({ item }) => renderFoodCard(item)}
         />
-      ) : searched ? (
+      ) : searched && !isSearching ? (
         <View style={styles.centered}>
-          <Ionicons name="search-outline" size={48} color={COLORS.border} />
-          <Text style={styles.emptyText}>Ничего не найдено</Text>
-          <Text style={styles.emptyHint}>Попробуйте другой запрос</Text>
+          <Ionicons name="search-outline" size={48} color={colors.border} />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('add_meal_not_found')}</Text>
+          <Text style={[styles.emptyHint, { color: colors.border }]}>{t('add_meal_try_other')}</Text>
         </View>
-      ) : (
-        <View style={styles.centered}>
-          <Ionicons name="fast-food-outline" size={48} color={COLORS.border} />
-          <Text style={styles.emptyText}>Введите название продукта</Text>
-        </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
-  // Actions
-  actionsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: SPACING.md,
-    gap: SPACING.sm,
-    marginBottom: SPACING.sm,
-  },
+  container: { flex: 1 },
+  actionsRow: { flexDirection: 'row', paddingHorizontal: SPACING.md, gap: SPACING.sm, marginBottom: SPACING.sm },
   actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingVertical: 10,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACING.xs, borderRadius: 14, borderWidth: 1, paddingVertical: 10,
   },
-  actionText: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-
-  // Search
-  searchRow: {
-    flexDirection: 'row',
-    padding: SPACING.md,
-    gap: SPACING.sm,
-  },
+  actionText: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  searchRow: { flexDirection: 'row', padding: SPACING.md, gap: SPACING.sm },
   inputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.sm,
-    gap: SPACING.xs,
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    borderRadius: 14, borderWidth: 1, paddingHorizontal: SPACING.sm, gap: SPACING.xs,
   },
-  input: {
-    flex: 1,
-    fontSize: FONT_SIZE.md,
-    color: COLORS.text,
-    paddingVertical: 10,
-  },
-  searchBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingHorizontal: SPACING.md,
-    justifyContent: 'center',
-  },
-  searchBtnText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: FONT_SIZE.sm,
-  },
-
-  // List
-  list: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.xl,
-  },
+  input: { flex: 1, fontSize: FONT_SIZE.md, paddingVertical: 10 },
+  list: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.xl },
+  sectionHeader: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginTop: SPACING.md, marginBottom: SPACING.sm },
   foodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    flexDirection: 'row', alignItems: 'center', borderRadius: 14,
+    padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1,
   },
-  foodInfo: {
-    flex: 1,
-    marginRight: SPACING.sm,
-  },
-  foodName: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  foodKcal: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  foodMacros: {
-    flexDirection: 'row',
-    gap: SPACING.xs,
-    marginRight: SPACING.sm,
-  },
-  macroChip: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
-  },
-
-  // Empty / loading
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.lg,
-  },
-  searchingText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.sm,
-  },
-  emptyText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.sm,
-  },
-  emptyHint: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.border,
-    marginTop: SPACING.xs,
-  },
+  foodInfo: { flex: 1, marginRight: SPACING.sm },
+  foodName: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  foodKcal: { fontSize: FONT_SIZE.xs, marginTop: 2 },
+  foodMacros: { flexDirection: 'row', gap: SPACING.xs, marginRight: SPACING.sm },
+  macroChip: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
+  searchingText: { fontSize: FONT_SIZE.md, marginTop: SPACING.sm },
+  emptyText: { fontSize: FONT_SIZE.md, marginTop: SPACING.sm },
+  emptyHint: { fontSize: FONT_SIZE.sm, marginTop: SPACING.xs },
 });

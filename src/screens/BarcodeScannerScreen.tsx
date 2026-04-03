@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
+import { SPACING, FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../i18n';
 import { getProductByBarcode } from '../services/openfoodfacts';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -12,6 +14,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function BarcodeScannerScreen() {
   const navigation = useNavigation<Nav>();
+  const { colors } = useTheme();
+  const { t } = useI18n();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,12 +31,12 @@ export default function BarcodeScannerScreen() {
         navigation.replace('ConfirmMeal', { food });
       } else {
         Alert.alert(
-          'Не найдено',
-          `Продукт со штрих-кодом ${data} не найден в базе. Добавить вручную?`,
+          t('scanner_not_found'),
+          t('scanner_not_found_msg'),
           [
-            { text: 'Отмена', onPress: () => setScanned(false) },
+            { text: t('cancel'), onPress: () => setScanned(false) },
             {
-              text: 'Добавить',
+              text: t('add'),
               onPress: () => navigation.replace('AddCustomFood', { barcode: data }),
             },
           ]
@@ -40,7 +44,7 @@ export default function BarcodeScannerScreen() {
         setLoading(false);
       }
     } catch {
-      Alert.alert('Ошибка', 'Не удалось найти продукт');
+      Alert.alert(t('error'), t('scanner_error'));
       setScanned(false);
       setLoading(false);
     }
@@ -52,11 +56,11 @@ export default function BarcodeScannerScreen() {
 
   if (!permission.granted) {
     return (
-      <View style={styles.centered}>
-        <Ionicons name="camera-outline" size={64} color={COLORS.textSecondary} />
-        <Text style={styles.permText}>Нужен доступ к камере для сканирования штрих-кодов</Text>
-        <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
-          <Text style={styles.permBtnText}>Разрешить камеру</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Ionicons name="camera-outline" size={64} color={colors.textSecondary} />
+        <Text style={[styles.permText, { color: colors.textSecondary }]}>{t('scanner_permission')}</Text>
+        <TouchableOpacity style={[styles.permBtn, { backgroundColor: colors.primary }]} onPress={requestPermission}>
+          <Text style={styles.permBtnText}>{t('scanner_allow')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -75,20 +79,20 @@ export default function BarcodeScannerScreen() {
           <View style={styles.middleRow}>
             <View style={styles.sideOverlay} />
             <View style={styles.scanFrame}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+              <View style={[styles.corner, styles.topLeft, { borderColor: colors.primary }]} />
+              <View style={[styles.corner, styles.topRight, { borderColor: colors.primary }]} />
+              <View style={[styles.corner, styles.bottomLeft, { borderColor: colors.primary }]} />
+              <View style={[styles.corner, styles.bottomRight, { borderColor: colors.primary }]} />
             </View>
             <View style={styles.sideOverlay} />
           </View>
           <View style={styles.bottomOverlay}>
             <Text style={styles.hint}>
-              {loading ? 'Поиск продукта...' : 'Наведите камеру на штрих-код'}
+              {loading ? t('scanner_searching') : t('scanner_hint')}
             </Text>
             {scanned && !loading && (
-              <TouchableOpacity style={styles.rescanBtn} onPress={() => setScanned(false)}>
-                <Text style={styles.rescanText}>Сканировать снова</Text>
+              <TouchableOpacity style={[styles.rescanBtn, { backgroundColor: colors.primary }]} onPress={() => setScanned(false)}>
+                <Text style={styles.rescanText}>{t('scanner_rescan')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -106,77 +110,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
   centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.background,
-    padding: SPACING.xl,
+    flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl,
   },
-  permText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  permBtn: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: 12,
-  },
-  permBtnText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: FONT_SIZE.md,
-  },
-
-  // Overlay
+  permText: { fontSize: FONT_SIZE.md, textAlign: 'center', marginTop: SPACING.md, marginBottom: SPACING.lg },
+  permBtn: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: 14 },
+  permBtnText: { color: '#fff', fontWeight: '600', fontSize: FONT_SIZE.md },
   overlay: { flex: 1 },
   topOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   middleRow: { flexDirection: 'row', height: FRAME_SIZE },
   sideOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   scanFrame: { width: FRAME_SIZE, height: FRAME_SIZE },
   bottomOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    paddingTop: SPACING.lg,
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', paddingTop: SPACING.lg,
   },
   hint: { color: '#fff', fontSize: FONT_SIZE.md, fontWeight: '500' },
-  rescanBtn: {
-    marginTop: SPACING.md,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: 10,
-  },
+  rescanBtn: { marginTop: SPACING.md, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: 12 },
   rescanText: { color: '#fff', fontWeight: '600', fontSize: FONT_SIZE.sm },
-
-  // Corners
-  corner: {
-    position: 'absolute',
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-  },
-  topLeft: {
-    top: 0, left: 0,
-    borderTopWidth: CORNER_WIDTH, borderLeftWidth: CORNER_WIDTH,
-    borderColor: COLORS.primary,
-  },
-  topRight: {
-    top: 0, right: 0,
-    borderTopWidth: CORNER_WIDTH, borderRightWidth: CORNER_WIDTH,
-    borderColor: COLORS.primary,
-  },
-  bottomLeft: {
-    bottom: 0, left: 0,
-    borderBottomWidth: CORNER_WIDTH, borderLeftWidth: CORNER_WIDTH,
-    borderColor: COLORS.primary,
-  },
-  bottomRight: {
-    bottom: 0, right: 0,
-    borderBottomWidth: CORNER_WIDTH, borderRightWidth: CORNER_WIDTH,
-    borderColor: COLORS.primary,
-  },
+  corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE },
+  topLeft: { top: 0, left: 0, borderTopWidth: CORNER_WIDTH, borderLeftWidth: CORNER_WIDTH },
+  topRight: { top: 0, right: 0, borderTopWidth: CORNER_WIDTH, borderRightWidth: CORNER_WIDTH },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: CORNER_WIDTH, borderLeftWidth: CORNER_WIDTH },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: CORNER_WIDTH, borderRightWidth: CORNER_WIDTH },
 });

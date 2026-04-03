@@ -138,4 +138,35 @@ export const en: Record<TranslationKey, string> = {
   goal_lose: 'Lose weight',
   goal_maintain: 'Maintain',
   goal_gain: 'Gain mass',
+
+  fab_food: 'Food',
+  fab_exercise: 'Exercise',
+
+  onboarding_title_1: 'Track your food',
+  onboarding_desc_1: 'Add meals in seconds — by search, barcode, or manual entry',
+  onboarding_title_2: 'Count your macros',
+  onboarding_desc_2: 'Automatic calculation of calories, protein, fat & carbs based on your goals',
+  onboarding_title_3: 'Reach your goals',
+  onboarding_desc_3: 'Monitor progress and adjust your diet to achieve the results you want',
+  onboarding_start: 'Get Started',
+  onboarding_skip: 'Skip',
+
+  recent_foods: 'Recent',
+  favorite_foods: 'Favorites',
+  no_recent: 'No recent products yet',
+  no_favorites: 'Add products to favorites ★',
+
+  water_title: 'Water',
+  water_goal: 'Water goal',
+  water_ml: 'ml',
+  water_of: 'of',
+  water_undo: 'Undo',
+  water_warning_title: 'Warning',
+  water_warning_msg: 'You have exceeded your daily water goal. Excessive water intake can be harmful to your health. Continue?',
+  water_warning_ok: 'Add',
+
+  edit_meal: 'Edit',
+  confirm_update: 'Update',
+  history_copy: 'Repeat',
+  history_copied: 'Meals copied to today',
 };

@@ -6,6 +6,8 @@ export interface UserProfile {
   gender: 'male' | 'female';
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'veryActive';
   goal: 'lose' | 'maintain' | 'gain';
+  isOnboarded?: boolean;
+  waterGoal?: number; // ml, default 2000
 }
 
 export interface NutritionTarget {
@@ -59,6 +61,13 @@ export interface DailySummary {
   totalSaturatedFat: number;
   totalSalt: number;
   meals: MealEntry[];
+}
+
+export interface WaterEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  amount_ml: number;
+  createdAt: string;
 }
 
 export interface ExerciseEntry {

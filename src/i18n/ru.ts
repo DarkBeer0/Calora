@@ -149,6 +149,42 @@ export const ru = {
   goal_lose: 'Похудение',
   goal_maintain: 'Поддержание',
   goal_gain: 'Набор массы',
+
+  // FAB
+  fab_food: 'Еда',
+  fab_exercise: 'Тренировка',
+
+  // Onboarding
+  onboarding_title_1: 'Отслеживай еду',
+  onboarding_desc_1: 'Добавляй приёмы пищи за секунды — поиском, штрих-кодом или вручную',
+  onboarding_title_2: 'Считай КБЖУ',
+  onboarding_desc_2: 'Автоматический расчёт калорий, белков, жиров и углеводов по твоим целям',
+  onboarding_title_3: 'Достигай целей',
+  onboarding_desc_3: 'Следи за прогрессом и корректируй питание для достижения результата',
+  onboarding_start: 'Начать',
+  onboarding_skip: 'Пропустить',
+
+  // Recent & Favorites
+  recent_foods: 'Недавние',
+  favorite_foods: 'Избранное',
+  no_recent: 'Ещё нет недавних продуктов',
+  no_favorites: 'Добавьте продукты в избранное ★',
+
+  // Water
+  water_title: 'Вода',
+  water_goal: 'Цель воды',
+  water_ml: 'мл',
+  water_of: 'из',
+  water_undo: 'Отменить',
+  water_warning_title: 'Внимание',
+  water_warning_msg: 'Вы выпили больше рекомендуемой нормы. Избыточное потребление воды может быть вредным для здоровья. Продолжить?',
+  water_warning_ok: 'Добавить',
+
+  // Edit & Copy
+  edit_meal: 'Редактировать',
+  confirm_update: 'Обновить',
+  history_copy: 'Повторить',
+  history_copied: 'Приёмы пищи скопированы на сегодня',
 } as const;
 
 export type TranslationKey = keyof typeof ru;

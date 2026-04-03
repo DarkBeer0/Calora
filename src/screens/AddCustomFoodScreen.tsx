@@ -11,35 +11,39 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
+import { SPACING, FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../i18n';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import type { FoodItem } from '../types';
+import type { TranslationKey } from '../i18n';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'AddCustomFood'>;
 
 interface Field {
   key: string;
-  label: string;
-  placeholder: string;
+  i18nKey: TranslationKey;
   numeric?: boolean;
 }
 
 const FIELDS: Field[] = [
-  { key: 'name', label: 'Название продукта', placeholder: 'Например: Овсянка домашняя' },
-  { key: 'calories', label: 'Калории (на 100г)', placeholder: '0', numeric: true },
-  { key: 'protein', label: 'Белки, г', placeholder: '0', numeric: true },
-  { key: 'fat', label: 'Жиры, г', placeholder: '0', numeric: true },
-  { key: 'carbs', label: 'Углеводы, г', placeholder: '0', numeric: true },
-  { key: 'fiber', label: 'Клетчатка, г', placeholder: '0', numeric: true },
-  { key: 'sugars', label: 'Сахар, г', placeholder: '0', numeric: true },
-  { key: 'saturatedFat', label: 'Насыщ. жиры, г', placeholder: '0', numeric: true },
-  { key: 'salt', label: 'Соль, г', placeholder: '0', numeric: true },
+  { key: 'name', i18nKey: 'custom_food_name' },
+  { key: 'calories', i18nKey: 'custom_food_cal', numeric: true },
+  { key: 'protein', i18nKey: 'custom_food_protein', numeric: true },
+  { key: 'fat', i18nKey: 'custom_food_fat', numeric: true },
+  { key: 'carbs', i18nKey: 'custom_food_carbs', numeric: true },
+  { key: 'fiber', i18nKey: 'custom_food_fiber', numeric: true },
+  { key: 'sugars', i18nKey: 'custom_food_sugars', numeric: true },
+  { key: 'saturatedFat', i18nKey: 'custom_food_sat_fat', numeric: true },
+  { key: 'salt', i18nKey: 'custom_food_salt', numeric: true },
 ];
 
 export default function AddCustomFoodScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
+  const { colors, isDark } = useTheme();
+  const { t } = useI18n();
   const barcode = route.params?.barcode;
 
   const [values, setValues] = useState<Record<string, string>>({ name: '' });
@@ -51,7 +55,7 @@ export default function AddCustomFoodScreen() {
   const handleSave = () => {
     const name = values.name?.trim();
     if (!name) {
-      Alert.alert('Ошибка', 'Введите название продукта');
+      Alert.alert(t('error'), t('custom_food_error_name'));
       return;
     }
 
@@ -76,68 +80,46 @@ export default function AddCustomFoodScreen() {
   };
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+    <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.container}>
       {barcode && (
-        <View style={styles.barcodeTag}>
-          <Text style={styles.barcodeText}>Штрих-код: {barcode}</Text>
+        <View style={[styles.barcodeTag, { backgroundColor: isDark ? 'rgba(33,150,243,0.15)' : '#E3F2FD' }]}>
+          <Text style={[styles.barcodeText, { color: colors.protein }]}>{t('custom_food_barcode')}: {barcode}</Text>
         </View>
       )}
 
       {FIELDS.map((f) => (
         <View key={f.key} style={styles.fieldWrap}>
-          <Text style={styles.label}>{f.label}</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t(f.i18nKey)}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
             value={values[f.key] || ''}
             onChangeText={(v) => setValue(f.key, v)}
-            placeholder={f.placeholder}
-            placeholderTextColor={COLORS.border}
+            placeholder={f.key === 'name' ? t('custom_food_name_hint') : '0'}
+            placeholderTextColor={colors.border}
             keyboardType={f.numeric ? 'numeric' : 'default'}
             maxLength={f.numeric ? 8 : 100}
           />
         </View>
       ))}
 
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
-        <Text style={styles.saveBtnText}>Далее</Text>
+      <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.primary }]} onPress={handleSave} activeOpacity={0.8}>
+        <Text style={styles.saveBtnText}>{t('next')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: COLORS.background },
+  scroll: { flex: 1 },
   container: { padding: SPACING.lg, paddingBottom: 40 },
-  barcodeTag: {
-    backgroundColor: '#E3F2FD',
-    borderRadius: 8,
-    padding: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  barcodeText: { fontSize: FONT_SIZE.xs, color: COLORS.protein, fontWeight: '500' },
+  barcodeTag: { borderRadius: 12, padding: SPACING.sm, marginBottom: SPACING.md },
+  barcodeText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
   fieldWrap: { marginBottom: SPACING.md },
-  label: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
+  label: { fontSize: FONT_SIZE.xs, fontWeight: '600', marginBottom: SPACING.xs },
   input: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 12,
-    fontSize: FONT_SIZE.md,
-    color: COLORS.text,
+    borderRadius: 14, borderWidth: 1,
+    paddingHorizontal: SPACING.md, paddingVertical: 12, fontSize: FONT_SIZE.md,
   },
-  saveBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
+  saveBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginTop: SPACING.sm },
   saveBtnText: { color: '#fff', fontSize: FONT_SIZE.lg, fontWeight: '700' },
 });

@@ -1,7 +1,9 @@
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, RefreshControl, Animated } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { DAILY_MICRO_TARGETS } from '../constants/nutrition';
 import { EXERCISES } from '../constants/exercises';
@@ -11,16 +13,22 @@ import { useI18n } from '../i18n';
 import { useProfile } from '../hooks/useProfile';
 import { useMeals } from '../hooks/useMeals';
 import { useExercises } from '../hooks/useExercises';
+import { useWater } from '../hooks/useWater';
 import CalorieSummaryCard from '../components/CalorieSummaryCard';
 import MiniRing from '../components/MiniRing';
 import MealCard from '../components/MealCard';
 import ExerciseCard from '../components/ExerciseCard';
+import WaterWidget from '../components/WaterWidget';
+import SkeletonDashboard from '../components/SkeletonDashboard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import type { MealEntry } from '../types';
 
+const handleEditMeal = (navigation: NativeStackNavigationProp<RootStackParamList>, meal: MealEntry) => {
+  navigation.navigate('ConfirmMeal', { food: meal.foodItem, editMeal: meal });
+};
+
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const MEAL_KEYS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 const MEAL_I18N: Record<string, string> = {
   breakfast: 'meal_breakfast',
   lunch: 'meal_lunch',
@@ -33,15 +41,84 @@ export default function DashboardScreen() {
   const { colors, isDark } = useTheme();
   const { t, lang } = useI18n();
   const { profile, isLoading: profileLoading } = useProfile();
-  const { todaySummary, todayMeals, deleteMeal, isLoading: mealsLoading } = useMeals();
-  const { todayExercises, todayBurned, deleteExercise, isLoading: exLoading } = useExercises();
+  const { todaySummary, todayMeals, deleteMeal, isLoading: mealsLoading, refresh: refreshMeals } = useMeals();
+  const { todayExercises, todayBurned, deleteExercise, isLoading: exLoading, refresh: refreshExercises } = useExercises();
+  const { todayTotal: waterTotal, addWater, removeLastEntry: undoWater, isLoading: waterLoading, refresh: refreshWater } = useWater();
 
-  if (profileLoading || mealsLoading || exLoading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{t('loading')}</Text>
-      </View>
-    );
+  const [refreshing, setRefreshing] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
+  const fabAnim = useRef(new Animated.Value(0)).current;
+
+  // Section fade-in animations
+  const fadeCalorie = useRef(new Animated.Value(0)).current;
+  const fadeMacro = useRef(new Animated.Value(0)).current;
+  const fadeMicro = useRef(new Animated.Value(0)).current;
+
+  const isLoading = profileLoading || mealsLoading || exLoading || waterLoading;
+
+  // Refresh all data when screen gets focus (e.g. after adding exercise/meal)
+  useFocusEffect(
+    useCallback(() => {
+      refreshMeals();
+      refreshExercises();
+      refreshWater();
+    }, [refreshMeals, refreshExercises, refreshWater])
+  );
+
+  useEffect(() => {
+    if (!isLoading) {
+      Animated.stagger(150, [
+        Animated.timing(fadeCalorie, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(fadeMacro, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(fadeMicro, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [isLoading]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refreshMeals(), refreshExercises(), refreshWater()]);
+    setRefreshing(false);
+  }, [refreshMeals, refreshExercises, refreshWater]);
+
+  const toggleFab = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const newOpen = !fabOpen;
+    setFabOpen(newOpen);
+    Animated.spring(fabAnim, {
+      toValue: newOpen ? 1 : 0,
+      useNativeDriver: true,
+      damping: 15,
+      stiffness: 120,
+    }).start();
+  };
+
+  const closeFab = () => {
+    setFabOpen(false);
+    Animated.timing(fabAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleFabAction = (action: 'food' | 'exercise') => {
+    closeFab();
+    if (action === 'food') navigation.navigate('AddMeal');
+    else navigation.navigate('AddExercise');
+  };
+
+  const fabRotate = fabAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg'],
+  });
+
+  const fabOption1Scale = fabAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
+  const fabOption2Scale = fabAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
+  const overlayOpacity = fabAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] });
+
+  if (isLoading) {
+    return <SkeletonDashboard />;
   }
 
   const target = calculateDailyTarget(profile);
@@ -52,7 +129,13 @@ export default function DashboardScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+      >
         {/* Header */}
         <Text style={[styles.header, { color: colors.text }]}>{t('app_name')}</Text>
         <Text style={[styles.dateText, { color: colors.textSecondary }]}>
@@ -60,23 +143,33 @@ export default function DashboardScreen() {
         </Text>
 
         {/* Calorie summary */}
-        <CalorieSummaryCard eaten={totalCalories} burned={todayBurned} target={target.calories} />
+        <Animated.View style={{ opacity: fadeCalorie, transform: [{ translateY: fadeCalorie.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+          <CalorieSummaryCard eaten={totalCalories} burned={todayBurned} target={target.calories} />
+        </Animated.View>
 
         {/* Macro mini rings */}
-        <View style={[styles.macroRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Animated.View style={[styles.macroRow, { backgroundColor: colors.surface, borderColor: colors.border, opacity: fadeMacro, transform: [{ translateY: fadeMacro.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
           <MiniRing progress={target.protein > 0 ? totalProtein / target.protein : 0} color={colors.protein} current={Math.round(totalProtein)} target={target.protein} label={t('dash_protein')} moreLabel={t('dash_more')} />
           <MiniRing progress={target.fat > 0 ? totalFat / target.fat : 0} color={colors.fat} current={Math.round(totalFat)} target={target.fat} label={t('dash_fat')} moreLabel={t('dash_more')} />
           <MiniRing progress={target.carbs > 0 ? totalCarbs / target.carbs : 0} color={colors.carbs} current={Math.round(totalCarbs)} target={target.carbs} label={t('dash_carbs')} moreLabel={t('dash_more')} />
-        </View>
+        </Animated.View>
 
         {/* Micro nutrients */}
-        <View style={[styles.microCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Animated.View style={[styles.microCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: fadeMicro, transform: [{ translateY: fadeMicro.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_extra')}</Text>
           <MicroRow label={t('dash_fiber')} current={r1(totalFiber)} target={DAILY_MICRO_TARGETS.fiber} color={colors.fiber} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} good />
           <MicroRow label={t('dash_sugars')} current={r1(totalSugars)} target={DAILY_MICRO_TARGETS.sugars} color={colors.sugars} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
           <MicroRow label={t('dash_sat_fat')} current={r1(totalSaturatedFat)} target={DAILY_MICRO_TARGETS.saturatedFat} color={colors.saturatedFat} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
           <MicroRow label={t('dash_salt')} current={r1(totalSalt)} target={DAILY_MICRO_TARGETS.salt} color={colors.salt} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
-        </View>
+        </Animated.View>
+
+        {/* Water */}
+        <WaterWidget
+          todayTotal={waterTotal}
+          goal={profile.waterGoal ?? 2000}
+          onAdd={addWater}
+          onUndo={undoWater}
+        />
 
         {/* Exercises */}
         <View style={styles.sectionHeader}>
@@ -113,7 +206,7 @@ export default function DashboardScreen() {
           mealGroups.map(({ type, meals }) => (
             <View key={type} style={styles.mealGroup}>
               <Text style={[styles.mealGroupTitle, { color: colors.text }]}>{t(MEAL_I18N[type] as any)}</Text>
-              {meals.map((meal) => <MealCard key={meal.id} meal={meal} onDelete={deleteMeal} />)}
+              {meals.map((meal) => <MealCard key={meal.id} meal={meal} onDelete={deleteMeal} onPress={(m) => handleEditMeal(navigation, m)} />)}
             </View>
           ))
         )}
@@ -121,10 +214,50 @@ export default function DashboardScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AddMeal')} activeOpacity={0.8}>
-        <Ionicons name="add" size={32} color="#fff" />
-      </TouchableOpacity>
+      {/* FAB Overlay — behind everything, catches taps to close */}
+      {fabOpen && (
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={closeFab}
+        >
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: overlayOpacity }]} />
+        </TouchableOpacity>
+      )}
+
+      {/* FAB Speed Dial — column layout, options above main button */}
+      <View style={styles.fabContainer} pointerEvents="box-none">
+        {fabOpen && (
+          <>
+            {/* Exercise option */}
+            <Animated.View style={[styles.fabOptionRow, { opacity: fabAnim, transform: [{ scale: fabOption2Scale }] }]}>
+              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('exercise')} activeOpacity={0.7}>
+                <Text style={[styles.fabLabel, { color: colors.text, backgroundColor: colors.surface }]}>{t('fab_exercise')}</Text>
+                <View style={[styles.fabMini, { backgroundColor: colors.error }]}>
+                  <Ionicons name="flame" size={22} color="#fff" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Food option */}
+            <Animated.View style={[styles.fabOptionRow, { opacity: fabAnim, transform: [{ scale: fabOption1Scale }] }]}>
+              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('food')} activeOpacity={0.7}>
+                <Text style={[styles.fabLabel, { color: colors.text, backgroundColor: colors.surface }]}>{t('fab_food')}</Text>
+                <View style={[styles.fabMini, { backgroundColor: colors.calories }]}>
+                  <Ionicons name="restaurant" size={22} color="#fff" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          </>
+        )}
+
+        {/* Main FAB */}
+        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={toggleFab} activeOpacity={0.8}>
+          <Animated.View style={{ transform: [{ rotate: fabRotate }] }}>
+            <Ionicons name="add" size={32} color="#fff" />
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -175,8 +308,6 @@ const microS = StyleSheet.create({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: SPACING.lg, paddingTop: 60 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { fontSize: FONT_SIZE.md },
   header: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   dateText: { fontSize: FONT_SIZE.sm, marginTop: 2, marginBottom: SPACING.lg, textTransform: 'capitalize' },
 
@@ -206,9 +337,52 @@ const styles = StyleSheet.create({
 
   emptyState: { alignItems: 'center', paddingVertical: SPACING.lg },
 
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
+
+  fabContainer: {
+    position: 'absolute',
+    bottom: 32,
+    right: 24,
+    alignItems: 'flex-end',
+    zIndex: 11,
+  },
+
   fab: {
-    position: 'absolute', bottom: 32, right: 24, width: 60, height: 60, borderRadius: 30,
+    width: 60, height: 60, borderRadius: 30,
     alignItems: 'center', justifyContent: 'center',
     elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6,
+  },
+
+  fabOptionRow: {
+    marginBottom: SPACING.sm,
+  },
+
+  fabOptionTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  fabMini: {
+    width: 46, height: 46, borderRadius: 23,
+    alignItems: 'center', justifyContent: 'center',
+    elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4,
+  },
+
+  fabLabel: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+    marginRight: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    overflow: 'hidden',
   },
 });

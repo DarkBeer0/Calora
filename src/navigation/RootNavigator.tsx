@@ -2,6 +2,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
 import type { FoodItem } from '../types';
@@ -18,7 +19,7 @@ import AddCustomFoodScreen from '../screens/AddCustomFoodScreen';
 export type RootStackParamList = {
   Tabs: undefined;
   AddMeal: undefined;
-  ConfirmMeal: { food: FoodItem };
+  ConfirmMeal: { food: FoodItem; editMeal?: import('../types').MealEntry };
   AddExercise: undefined;
   BarcodeScanner: undefined;
   AddCustomFood: { barcode?: string } | undefined;
@@ -36,6 +37,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 function TabNavigator() {
   const { colors } = useTheme();
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -46,8 +48,8 @@ function TabNavigator() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 4,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },

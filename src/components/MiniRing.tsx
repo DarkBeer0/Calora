@@ -1,6 +1,10 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface MiniRingProps {
   size?: number;
@@ -11,6 +15,7 @@ interface MiniRingProps {
   target: number;
   label: string;
   unit?: string;
+  moreLabel?: string;
 }
 
 export default function MiniRing({
@@ -21,13 +26,29 @@ export default function MiniRing({
   current,
   target,
   label,
-  unit = 'г',
+  unit = 'g',
+  moreLabel = '',
 }: MiniRingProps) {
+  const { colors } = useTheme();
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.min(Math.max(progress, 0), 1);
-  const strokeDashoffset = circumference * (1 - clamped);
   const remaining = Math.max(target - current, 0);
+
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: clamped,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, [clamped]);
+
+  const strokeDashoffset = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [circumference, 0],
+  });
 
   return (
     <View style={[styles.wrapper, { width: size }]}>
@@ -42,7 +63,7 @@ export default function MiniRing({
             fill="none"
             opacity={0.15}
           />
-          <Circle
+          <AnimatedCircle
             cx={size / 2}
             cy={size / 2}
             r={radius}
@@ -58,8 +79,10 @@ export default function MiniRing({
         </Svg>
         <Text style={[styles.ringValue, { color }]}>{current}</Text>
       </View>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.remaining}>ещё {remaining}{unit}</Text>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.remaining, { color: colors.border }]}>
+        {moreLabel} {remaining}{unit}
+      </Text>
     </View>
   );
 }
@@ -75,13 +98,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FONT_SIZE.xs,
-    color: '#757575',
     marginTop: 4,
     fontWeight: '500',
   },
   remaining: {
     fontSize: 10,
-    color: '#9E9E9E',
     marginTop: 1,
   },
 });

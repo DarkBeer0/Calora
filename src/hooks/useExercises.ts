@@ -39,6 +39,11 @@ export function useExercises() {
   const todayExercises = getExercisesForDate(todayKey());
   const todayBurned = todayExercises.reduce((sum, e) => sum + e.caloriesBurned, 0);
 
+  const refresh = useCallback(async () => {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (raw) setAllExercises(JSON.parse(raw));
+  }, []);
+
   return {
     allExercises,
     todayExercises,
@@ -47,5 +52,6 @@ export function useExercises() {
     deleteExercise,
     getExercisesForDate,
     isLoading,
+    refresh,
   };
 }

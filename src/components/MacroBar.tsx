@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
+import { SPACING, FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 
 interface MacroBarProps {
   label: string;
@@ -9,19 +10,20 @@ interface MacroBarProps {
   unit?: string;
 }
 
-export default function MacroBar({ label, current, target, color, unit = 'г' }: MacroBarProps) {
+export default function MacroBar({ label, current, target, color, unit = 'g' }: MacroBarProps) {
+  const { colors } = useTheme();
   const progress = target > 0 ? Math.min(current / target, 1) : 0;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
         <Text style={styles.values}>
           <Text style={{ color, fontWeight: '600' }}>{current}</Text>
-          <Text style={styles.divider}> / {target}{unit}</Text>
+          <Text style={{ color: colors.textSecondary }}> / {target}{unit}</Text>
         </Text>
       </View>
-      <View style={styles.trackBg}>
+      <View style={[styles.trackBg, { backgroundColor: `${color}20` }]}>
         <View style={[styles.trackFill, { width: `${progress * 100}%`, backgroundColor: color }]} />
       </View>
     </View>
@@ -39,19 +41,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.text,
     fontWeight: '500',
   },
   values: {
     fontSize: FONT_SIZE.sm,
   },
-  divider: {
-    color: COLORS.textSecondary,
-  },
   trackBg: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E8E8E8',
     overflow: 'hidden',
   },
   trackFill: {

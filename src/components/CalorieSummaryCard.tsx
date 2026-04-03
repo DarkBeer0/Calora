@@ -1,7 +1,12 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
+import { SPACING, FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../i18n';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface CalorieSummaryCardProps {
   eaten: number;
@@ -10,6 +15,9 @@ interface CalorieSummaryCardProps {
 }
 
 export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSummaryCardProps) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+
   const net = eaten - burned;
   const remaining = Math.max(target - net, 0);
   const progress = target > 0 ? Math.min(net / target, 1) : 0;
@@ -19,16 +27,30 @@ export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSum
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - Math.min(progress, 1));
+
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: progress,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, [progress]);
+
+  const strokeDashoffset = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [circumference, 0],
+  });
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.row}>
         {/* Left: eaten */}
         <View style={styles.stat}>
-          <Ionicons name="restaurant" size={18} color={COLORS.calories} />
-          <Text style={styles.statValue}>{eaten}</Text>
-          <Text style={styles.statLabel}>Потреблено</Text>
+          <Ionicons name="restaurant" size={18} color={colors.calories} />
+          <Text style={[styles.statValue, { color: colors.text }]}>{eaten}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dash_eaten')}</Text>
         </View>
 
         {/* Center: ring */}
@@ -39,16 +61,16 @@ export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSum
                 cx={size / 2}
                 cy={size / 2}
                 r={radius}
-                stroke={COLORS.calories}
+                stroke={colors.calories}
                 strokeWidth={strokeWidth}
                 fill="none"
                 opacity={0.12}
               />
-              <Circle
+              <AnimatedCircle
                 cx={size / 2}
                 cy={size / 2}
                 r={radius}
-                stroke={overLimit ? COLORS.error : COLORS.calories}
+                stroke={overLimit ? colors.error : colors.calories}
                 strokeWidth={strokeWidth}
                 fill="none"
                 strokeDasharray={circumference}
@@ -59,11 +81,11 @@ export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSum
               />
             </Svg>
             <View style={styles.ringCenter}>
-              <Text style={[styles.ringValue, overLimit && { color: COLORS.error }]}>
+              <Text style={[styles.ringValue, { color: overLimit ? colors.error : colors.calories }]}>
                 {remaining}
               </Text>
-              <Text style={styles.ringLabel}>
-                {overLimit ? 'перебор' : 'осталось'}
+              <Text style={[styles.ringLabel, { color: colors.textSecondary }]}>
+                {overLimit ? t('dash_over') : t('dash_remaining')}
               </Text>
             </View>
           </View>
@@ -71,9 +93,9 @@ export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSum
 
         {/* Right: burned */}
         <View style={styles.stat}>
-          <Ionicons name="flame" size={18} color={COLORS.error} />
-          <Text style={styles.statValue}>{burned}</Text>
-          <Text style={styles.statLabel}>Сожжено</Text>
+          <Ionicons name="flame" size={18} color={colors.error} />
+          <Text style={[styles.statValue, { color: colors.text }]}>{burned}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dash_burned')}</Text>
         </View>
       </View>
     </View>
@@ -82,11 +104,9 @@ export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSum
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.surface,
     borderRadius: 20,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   row: {
     flexDirection: 'row',
@@ -100,12 +120,10 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
-    color: COLORS.text,
     marginTop: 4,
   },
   statLabel: {
     fontSize: 10,
-    color: COLORS.textSecondary,
     marginTop: 2,
   },
   ringCenter: {
@@ -115,10 +133,8 @@ const styles = StyleSheet.create({
   ringValue: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '800',
-    color: COLORS.calories,
   },
   ringLabel: {
     fontSize: 10,
-    color: COLORS.textSecondary,
   },
 });

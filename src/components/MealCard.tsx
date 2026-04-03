@@ -1,31 +1,85 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
+import * as Haptics from 'expo-haptics';
+import { SPACING, FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../i18n';
 import type { MealEntry } from '../types';
 
 interface MealCardProps {
   meal: MealEntry;
   onDelete?: (id: string) => void;
+  onPress?: (meal: MealEntry) => void;
 }
 
-export default function MealCard({ meal, onDelete }: MealCardProps) {
-  return (
-    <View style={styles.card}>
+export default function MealCard({ meal, onDelete, onPress }: MealCardProps) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+  const swipeableRef = useRef<Swipeable>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handleDelete = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      onDelete?.(meal.id);
+    });
+  };
+
+  const renderRightActions = () => (
+    <TouchableOpacity style={[styles.swipeAction, { backgroundColor: colors.error }]} onPress={handleDelete}>
+      <Ionicons name="trash-outline" size={22} color="#fff" />
+      <Text style={styles.swipeActionText}>{t('delete')}</Text>
+    </TouchableOpacity>
+  );
+
+  const cardInner = (
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.left}>
-        <Text style={styles.name} numberOfLines={1}>{meal.foodItem.name}</Text>
-        <Text style={styles.meta}>{meal.grams}г · {meal.calories} ккал</Text>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{meal.foodItem.name}</Text>
+        <Text style={[styles.meta, { color: colors.textSecondary }]}>{meal.grams}{t('g')} · {meal.calories} {t('kcal')}</Text>
       </View>
       <View style={styles.macros}>
-        <Text style={[styles.macroText, { color: COLORS.protein }]}>Б {meal.protein}</Text>
-        <Text style={[styles.macroText, { color: COLORS.fat }]}>Ж {meal.fat}</Text>
-        <Text style={[styles.macroText, { color: COLORS.carbs }]}>У {meal.carbs}</Text>
+        <Text style={[styles.macroText, { color: colors.protein }]}>P {meal.protein}</Text>
+        <Text style={[styles.macroText, { color: colors.fat }]}>F {meal.fat}</Text>
+        <Text style={[styles.macroText, { color: colors.carbs }]}>C {meal.carbs}</Text>
       </View>
-      {onDelete && (
-        <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(meal.id)}>
-          <Ionicons name="close-circle-outline" size={22} color={COLORS.error} />
-        </TouchableOpacity>
-      )}
     </View>
+  );
+
+  const cardContent = onPress ? (
+    <TouchableOpacity activeOpacity={0.7} onPress={() => onPress(meal)}>
+      {cardInner}
+    </TouchableOpacity>
+  ) : cardInner;
+
+  if (!onDelete) {
+    return (
+      <Animated.View style={{ opacity: fadeAnim }}>
+        {cardContent}
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateX: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [-50, 0] }) }] }}>
+      <Swipeable ref={swipeableRef} renderRightActions={renderRightActions} overshootRight={false}>
+        {cardContent}
+      </Swipeable>
+    </Animated.View>
   );
 }
 
@@ -33,12 +87,10 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   left: {
     flex: 1,
@@ -47,11 +99,9 @@ const styles = StyleSheet.create({
   name: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
-    color: COLORS.text,
   },
   meta: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
     marginTop: 2,
   },
   macros: {
@@ -62,8 +112,18 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
   },
-  deleteBtn: {
-    marginLeft: SPACING.sm,
-    padding: 2,
+  swipeAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    marginBottom: SPACING.sm,
+    borderRadius: 14,
+    marginLeft: SPACING.xs,
+  },
+  swipeActionText: {
+    color: '#fff',
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
+    marginTop: 2,
   },
 });

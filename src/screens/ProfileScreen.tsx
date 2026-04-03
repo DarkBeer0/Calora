@@ -9,37 +9,32 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
-import { ACTIVITY_LEVELS, GOALS } from '../constants/nutrition';
-import { calculateDailyTarget } from '../utils/nutrition';
+import * as Haptics from 'expo-haptics';
+import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useProfile } from '../hooks/useProfile';
 import { useTheme } from '../hooks/useTheme';
-import type { UserProfile, NutritionTarget } from '../types';
+import { useI18n, LANGUAGE_LABELS } from '../i18n';
+import type { Language } from '../i18n';
+import { calculateDailyTarget } from '../utils/nutrition';
+import type { UserProfile } from '../types';
 
 type Gender = UserProfile['gender'];
 type ActivityLevel = UserProfile['activityLevel'];
 type Goal = UserProfile['goal'];
 
-const GENDER_OPTIONS: { key: Gender; label: string }[] = [
-  { key: 'male', label: 'Мужской' },
-  { key: 'female', label: 'Женский' },
-];
-
-const ACTIVITY_OPTIONS: { key: ActivityLevel; label: string }[] = (
-  Object.keys(ACTIVITY_LEVELS) as ActivityLevel[]
-).map((key) => ({ key, label: ACTIVITY_LEVELS[key].label }));
-
-const GOAL_OPTIONS: { key: Goal; label: string }[] = (
-  Object.keys(GOALS) as Goal[]
-).map((key) => ({ key, label: GOALS[key].label }));
+const ACTIVITY_KEYS: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'active', 'veryActive'];
+const GOAL_KEYS: Goal[] = ['lose', 'maintain', 'gain'];
+const LANGUAGE_KEYS: Language[] = ['ru', 'en', 'pl'];
 
 export default function ProfileScreen() {
   const { colors, isDark, toggle: toggleTheme } = useTheme();
+  const { t, lang, setLang } = useI18n();
   const { profile, saveProfile, isLoading } = useProfile();
 
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
+  const [waterGoal, setWaterGoal] = useState('');
   const [gender, setGender] = useState<Gender>('male');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [goal, setGoal] = useState<Goal>('maintain');
@@ -49,22 +44,23 @@ export default function ProfileScreen() {
       setAge(String(profile.age));
       setWeight(String(profile.weight));
       setHeight(String(profile.height));
+      setWaterGoal(String(profile.waterGoal ?? 2000));
       setGender(profile.gender);
       setActivityLevel(profile.activityLevel);
       setGoal(profile.goal);
     }
   }, [isLoading, profile]);
 
-  // Live recalculation on every field change
   const currentProfile: UserProfile = useMemo(() => ({
     ...profile,
     age: parseInt(age, 10) || 0,
     weight: parseFloat(weight) || 0,
     height: parseFloat(height) || 0,
+    waterGoal: parseInt(waterGoal, 10) || 2000,
     gender,
     activityLevel,
     goal,
-  }), [profile, age, weight, height, gender, activityLevel, goal]);
+  }), [profile, age, weight, height, waterGoal, gender, activityLevel, goal]);
 
   const target = useMemo(() => {
     if (currentProfile.age > 0 && currentProfile.weight > 0 && currentProfile.height > 0) {
@@ -75,85 +71,144 @@ export default function ProfileScreen() {
 
   const handleSave = () => {
     if (!currentProfile.age || !currentProfile.weight || !currentProfile.height) {
-      Alert.alert('Ошибка', 'Заполните все числовые поля');
+      Alert.alert(t('error'), t('profile_error_fields'));
       return;
     }
-
     saveProfile(currentProfile);
-    Alert.alert('Готово', 'Профиль сохранён');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(t('done'), t('profile_saved'));
   };
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.loadingText}>Загрузка...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{t('loading')}</Text>
       </View>
     );
   }
 
+  const ACTIVITY_I18N: Record<ActivityLevel, string> = {
+    sedentary: 'activity_sedentary',
+    light: 'activity_light',
+    moderate: 'activity_moderate',
+    active: 'activity_active',
+    veryActive: 'activity_very_active',
+  };
+
+  const GOAL_I18N: Record<Goal, string> = {
+    lose: 'goal_lose',
+    maintain: 'goal_maintain',
+    gain: 'goal_gain',
+  };
+
   return (
     <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: colors.text }]}>Профиль</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{t('profile_title')}</Text>
 
       {/* Numeric inputs */}
       <View style={styles.row}>
-        <NumericField label="Возраст" value={age} onChange={setAge} suffix="лет" />
-        <NumericField label="Вес" value={weight} onChange={setWeight} suffix="кг" />
-        <NumericField label="Рост" value={height} onChange={setHeight} suffix="см" />
+        <NumericField label={t('profile_age')} value={age} onChange={setAge} suffix={t('profile_age_unit')} colors={colors} />
+        <NumericField label={t('profile_weight')} value={weight} onChange={setWeight} suffix={t('profile_weight_unit')} colors={colors} />
+        <NumericField label={t('profile_height')} value={height} onChange={setHeight} suffix={t('profile_height_unit')} colors={colors} />
+      </View>
+
+      {/* Water goal */}
+      <View style={styles.row}>
+        <NumericField label={t('water_goal')} value={waterGoal} onChange={setWaterGoal} suffix={t('water_ml')} colors={colors} />
       </View>
 
       {/* Gender */}
-      <Text style={styles.sectionLabel}>Пол</Text>
-      <SegmentedControl
-        options={GENDER_OPTIONS}
-        selected={gender}
-        onSelect={(v) => setGender(v)}
-      />
+      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_gender')}</Text>
+      <View style={styles.segmented}>
+        {(['male', 'female'] as Gender[]).map((key) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.segmentItem, { backgroundColor: colors.surface, borderColor: colors.border }, gender === key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+            onPress={() => setGender(key)}
+          >
+            <Text style={[styles.segmentText, { color: colors.text }, gender === key && styles.segmentTextActive]}>
+              {t(key === 'male' ? 'profile_male' : 'profile_female')}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* Activity */}
-      <Text style={styles.sectionLabel}>Активность</Text>
-      <OptionList
-        options={ACTIVITY_OPTIONS}
-        selected={activityLevel}
-        onSelect={(v) => setActivityLevel(v)}
-      />
+      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_activity')}</Text>
+      <View style={styles.optionList}>
+        {ACTIVITY_KEYS.map((key) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.optionItem, { backgroundColor: colors.surface, borderColor: colors.border }, activityLevel === key && { backgroundColor: isDark ? `${colors.primary}30` : '#E8F5E9', borderColor: colors.primary }]}
+            onPress={() => setActivityLevel(key)}
+          >
+            <Text style={[styles.optionText, { color: colors.text }, activityLevel === key && { color: colors.primary, fontWeight: '600' }]}>
+              {t(ACTIVITY_I18N[key] as any)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* Goal */}
-      <Text style={styles.sectionLabel}>Цель</Text>
-      <SegmentedControl
-        options={GOAL_OPTIONS}
-        selected={goal}
-        onSelect={(v) => setGoal(v)}
-      />
+      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_goal')}</Text>
+      <View style={styles.segmented}>
+        {GOAL_KEYS.map((key) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.segmentItem, { backgroundColor: colors.surface, borderColor: colors.border }, goal === key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+            onPress={() => setGoal(key)}
+          >
+            <Text style={[styles.segmentText, { color: colors.text }, goal === key && styles.segmentTextActive]}>
+              {t(GOAL_I18N[key] as any)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* Theme toggle */}
-      <Text style={[styles.sectionLabel, { color: colors.text }]}>Тема</Text>
+      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_theme')}</Text>
       <TouchableOpacity
-        style={[styles.themeToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        style={[styles.settingRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={toggleTheme}
         activeOpacity={0.7}
       >
         <Ionicons name={isDark ? 'moon' : 'sunny'} size={22} color={colors.primary} />
-        <Text style={[styles.themeToggleText, { color: colors.text }]}>
-          {isDark ? 'Тёмная тема' : 'Светлая тема'}
+        <Text style={[styles.settingRowText, { color: colors.text }]}>
+          {isDark ? t('profile_theme_dark') : t('profile_theme_light')}
         </Text>
         <Ionicons name="swap-horizontal" size={20} color={colors.textSecondary} />
       </TouchableOpacity>
 
+      {/* Language selector */}
+      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_language')}</Text>
+      <View style={styles.segmented}>
+        {LANGUAGE_KEYS.map((key) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.segmentItem, { backgroundColor: colors.surface, borderColor: colors.border }, lang === key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+            onPress={() => setLang(key)}
+          >
+            <Text style={[styles.segmentText, { color: colors.text }, lang === key && styles.segmentTextActive]}>
+              {LANGUAGE_LABELS[key]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* Save button */}
       <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave} activeOpacity={0.8}>
-        <Text style={styles.saveButtonText}>Сохранить</Text>
+        <Text style={styles.saveButtonText}>{t('save')}</Text>
       </TouchableOpacity>
 
       {/* KBJU Target */}
       {target && (
         <View style={[styles.targetCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.targetTitle, { color: colors.text }]}>Ваша дневная норма</Text>
+          <Text style={[styles.targetTitle, { color: colors.text }]}>{t('profile_daily_norm')}</Text>
           <View style={styles.targetRow}>
-            <TargetBadge label="Ккал" value={target.calories} color={colors.calories} />
-            <TargetBadge label="Белки" value={target.protein} color={colors.protein} suffix="г" />
-            <TargetBadge label="Жиры" value={target.fat} color={colors.fat} suffix="г" />
-            <TargetBadge label="Углев." value={target.carbs} color={colors.carbs} suffix="г" />
+            <TargetBadge label={t('kcal')} value={target.calories} color={colors.calories} textSecondary={colors.textSecondary} />
+            <TargetBadge label={t('dash_protein')} value={target.protein} color={colors.protein} suffix={t('g')} textSecondary={colors.textSecondary} />
+            <TargetBadge label={t('dash_fat')} value={target.fat} color={colors.fat} suffix={t('g')} textSecondary={colors.textSecondary} />
+            <TargetBadge label={t('dash_carbs')} value={target.carbs} color={colors.carbs} suffix={t('g')} textSecondary={colors.textSecondary} />
           </View>
         </View>
       )}
@@ -164,107 +219,37 @@ export default function ProfileScreen() {
 /* ---- Small components ---- */
 
 function NumericField({
-  label,
-  value,
-  onChange,
-  suffix,
+  label, value, onChange, suffix, colors,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  suffix: string;
+  label: string; value: string; onChange: (v: string) => void; suffix: string;
+  colors: { surface: string; border: string; text: string; textSecondary: string };
 }) {
   return (
     <View style={styles.numericField}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.inputRow}>
+      <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.text }]}
           value={value}
           onChangeText={onChange}
           keyboardType="numeric"
           maxLength={5}
         />
-        <Text style={styles.suffix}>{suffix}</Text>
+        <Text style={[styles.suffix, { color: colors.textSecondary }]}>{suffix}</Text>
       </View>
     </View>
   );
 }
 
-function SegmentedControl<T extends string>({
-  options,
-  selected,
-  onSelect,
-}: {
-  options: { key: T; label: string }[];
-  selected: T;
-  onSelect: (key: T) => void;
-}) {
-  return (
-    <View style={styles.segmented}>
-      {options.map((opt) => (
-        <TouchableOpacity
-          key={opt.key}
-          style={[styles.segmentItem, selected === opt.key && styles.segmentItemActive]}
-          onPress={() => onSelect(opt.key)}
-        >
-          <Text
-            style={[styles.segmentText, selected === opt.key && styles.segmentTextActive]}
-          >
-            {opt.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-function OptionList<T extends string>({
-  options,
-  selected,
-  onSelect,
-}: {
-  options: { key: T; label: string }[];
-  selected: T;
-  onSelect: (key: T) => void;
-}) {
-  return (
-    <View style={styles.optionList}>
-      {options.map((opt) => (
-        <TouchableOpacity
-          key={opt.key}
-          style={[styles.optionItem, selected === opt.key && styles.optionItemActive]}
-          onPress={() => onSelect(opt.key)}
-        >
-          <Text
-            style={[styles.optionText, selected === opt.key && styles.optionTextActive]}
-          >
-            {opt.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
 function TargetBadge({
-  label,
-  value,
-  color,
-  suffix,
+  label, value, color, suffix, textSecondary,
 }: {
-  label: string;
-  value: number;
-  color: string;
-  suffix?: string;
+  label: string; value: number; color: string; suffix?: string; textSecondary: string;
 }) {
   return (
     <View style={styles.badge}>
-      <Text style={[styles.badgeValue, { color }]}>
-        {value}
-        {suffix ?? ''}
-      </Text>
-      <Text style={styles.badgeLabel}>{label}</Text>
+      <Text style={[styles.badgeValue, { color }]}>{value}{suffix ?? ''}</Text>
+      <Text style={[styles.badgeLabel, { color: textSecondary }]}>{label}</Text>
     </View>
   );
 }
@@ -272,186 +257,56 @@ function TargetBadge({
 /* ---- Styles ---- */
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  container: {
-    padding: SPACING.lg,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.background,
-  },
-  loadingText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-  },
-  title: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.lg,
-  },
+  scroll: { flex: 1 },
+  container: { padding: SPACING.lg, paddingTop: 60, paddingBottom: 40 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { fontSize: FONT_SIZE.md },
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: SPACING.lg },
 
-  // Numeric fields row
-  row: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  numericField: {
-    flex: 1,
-  },
-  fieldLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-  },
+  row: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md },
+  numericField: { flex: 1 },
+  fieldLabel: { fontSize: FONT_SIZE.xs, marginBottom: SPACING.xs },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.sm,
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 14, borderWidth: 1, paddingHorizontal: SPACING.sm,
   },
-  input: {
-    flex: 1,
-    fontSize: FONT_SIZE.lg,
-    color: COLORS.text,
-    paddingVertical: SPACING.sm,
-  },
-  suffix: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-  },
+  input: { flex: 1, fontSize: FONT_SIZE.lg, paddingVertical: SPACING.sm },
+  suffix: { fontSize: FONT_SIZE.sm },
 
-  // Section labels
-  sectionLabel: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
+  sectionLabel: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginTop: SPACING.md, marginBottom: SPACING.sm },
 
-  // Segmented control
-  segmented: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
+  segmented: { flexDirection: 'row', gap: SPACING.sm },
   segmentItem: {
-    flex: 1,
-    paddingVertical: SPACING.sm,
-    borderRadius: 10,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
+    flex: 1, paddingVertical: SPACING.sm, borderRadius: 14,
+    borderWidth: 1, alignItems: 'center',
   },
-  segmentItemActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  segmentText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.text,
-  },
-  segmentTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
+  segmentText: { fontSize: FONT_SIZE.sm },
+  segmentTextActive: { color: '#fff', fontWeight: '700' },
 
-  // Option list (vertical)
-  optionList: {
-    gap: SPACING.xs,
-  },
+  optionList: { gap: SPACING.xs },
   optionItem: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 10,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md,
+    borderRadius: 14, borderWidth: 1,
   },
-  optionItemActive: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: COLORS.primary,
-  },
-  optionText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.text,
-  },
-  optionTextActive: {
-    color: COLORS.primaryDark,
-    fontWeight: '600',
-  },
+  optionText: { fontSize: FONT_SIZE.sm },
 
-  // Theme toggle
-  themeToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    padding: SPACING.md,
-    borderRadius: 12,
-    borderWidth: 1,
+  settingRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    padding: SPACING.md, borderRadius: 14, borderWidth: 1,
   },
-  themeToggleText: {
-    flex: 1,
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
-  },
+  settingRowText: { flex: 1, fontSize: FONT_SIZE.sm, fontWeight: '600' },
 
-  // Save button
   saveButton: {
-    marginTop: SPACING.lg,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
+    marginTop: SPACING.lg, paddingVertical: 14, borderRadius: 14, alignItems: 'center',
   },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: FONT_SIZE.md,
-    fontWeight: '700',
-  },
+  saveButtonText: { color: '#fff', fontSize: FONT_SIZE.md, fontWeight: '700' },
 
-  // Target card
   targetCard: {
-    marginTop: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    marginTop: SPACING.lg, borderRadius: 20, padding: SPACING.lg, borderWidth: 1,
   },
-  targetTitle: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.md,
-    textAlign: 'center',
-  },
-  targetRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  badge: {
-    alignItems: 'center',
-  },
-  badgeValue: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '700',
-  },
-  badgeLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
+  targetTitle: { fontSize: FONT_SIZE.md, fontWeight: '600', marginBottom: SPACING.md, textAlign: 'center' },
+  targetRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  badge: { alignItems: 'center' },
+  badgeValue: { fontSize: FONT_SIZE.xl, fontWeight: '700' },
+  badgeLabel: { fontSize: FONT_SIZE.xs, marginTop: 2 },
 });

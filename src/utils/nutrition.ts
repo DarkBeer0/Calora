@@ -3,7 +3,7 @@ import type { UserProfile, NutritionTarget } from '../types';
 
 /**
  * Mifflin-St Jeor equation for BMR (Basal Metabolic Rate)
- * Men:   10 * weight(kg) + 6.25 * height(cm) - 5 * age - 161 + 5
+ * Men:   10 * weight(kg) + 6.25 * height(cm) - 5 * age + 5
  * Women: 10 * weight(kg) + 6.25 * height(cm) - 5 * age - 161
  */
 export function calculateBMR(profile: UserProfile): number {
@@ -11,17 +11,43 @@ export function calculateBMR(profile: UserProfile): number {
   return profile.gender === 'male' ? base + 5 : base - 161;
 }
 
+/**
+ * TDEE & macro targets based on user weight and goals.
+ *
+ * Protein: weight-based
+ *   - lose:     2.0 g/kg (preserve muscle in deficit)
+ *   - maintain: 1.6 g/kg
+ *   - gain:     1.8 g/kg
+ *
+ * Fat: 25% of TDEE (min 0.8 g/kg)
+ * Carbs: remaining calories
+ */
 export function calculateDailyTarget(profile: UserProfile): NutritionTarget {
   const bmr = calculateBMR(profile);
   const activity = ACTIVITY_LEVELS[profile.activityLevel];
   const goal = GOALS[profile.goal];
 
-  const calories = Math.round(bmr * activity.factor + goal.offset);
+  const tdee = bmr * activity.factor;
+  const calories = Math.round(tdee + goal.offset);
 
-  // Standard macro split: 30% protein, 25% fat, 45% carbs
-  const protein = Math.round((calories * 0.3) / 4); // 4 kcal per gram
-  const fat = Math.round((calories * 0.25) / 9);    // 9 kcal per gram
-  const carbs = Math.round((calories * 0.45) / 4);  // 4 kcal per gram
+  // Protein based on body weight and goal
+  const proteinPerKg: Record<string, number> = {
+    lose: 2.0,
+    maintain: 1.6,
+    gain: 1.8,
+  };
+  const protein = Math.round(profile.weight * proteinPerKg[profile.goal]);
+  const proteinCalories = protein * 4;
+
+  // Fat: 25% of total calories, but at least 0.8 g/kg
+  const fatFromPercent = Math.round((calories * 0.25) / 9);
+  const fatMinimum = Math.round(profile.weight * 0.8);
+  const fat = Math.max(fatFromPercent, fatMinimum);
+  const fatCalories = fat * 9;
+
+  // Carbs: remaining calories
+  const carbCalories = Math.max(calories - proteinCalories - fatCalories, 0);
+  const carbs = Math.round(carbCalories / 4);
 
   return { calories, protein, fat, carbs };
 }

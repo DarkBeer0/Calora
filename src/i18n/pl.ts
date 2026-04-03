@@ -138,4 +138,35 @@ export const pl: Record<TranslationKey, string> = {
   goal_lose: 'Schudnąć',
   goal_maintain: 'Utrzymać wagę',
   goal_gain: 'Przybrać masę',
+
+  fab_food: 'Jedzenie',
+  fab_exercise: 'Trening',
+
+  onboarding_title_1: 'Śledź jedzenie',
+  onboarding_desc_1: 'Dodawaj posiłki w kilka sekund — wyszukiwaniem, kodem kreskowym lub ręcznie',
+  onboarding_title_2: 'Licz makroskładniki',
+  onboarding_desc_2: 'Automatyczne obliczanie kalorii, białka, tłuszczów i węglowodanów',
+  onboarding_title_3: 'Osiągaj cele',
+  onboarding_desc_3: 'Monitoruj postępy i dostosowuj dietę, aby osiągnąć swoje cele',
+  onboarding_start: 'Rozpocznij',
+  onboarding_skip: 'Pomiń',
+
+  recent_foods: 'Ostatnie',
+  favorite_foods: 'Ulubione',
+  no_recent: 'Brak ostatnich produktów',
+  no_favorites: 'Dodaj produkty do ulubionych ★',
+
+  water_title: 'Woda',
+  water_goal: 'Cel nawodnienia',
+  water_ml: 'ml',
+  water_of: 'z',
+  water_undo: 'Cofnij',
+  water_warning_title: 'Uwaga',
+  water_warning_msg: 'Przekroczyłeś dzienną normę wody. Nadmierne spożycie wody może być szkodliwe dla zdrowia. Kontynuować?',
+  water_warning_ok: 'Dodaj',
+
+  edit_meal: 'Edytuj',
+  confirm_update: 'Zaktualizuj',
+  history_copy: 'Powtórz',
+  history_copied: 'Posiłki skopiowane na dziś',
 };

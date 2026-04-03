@@ -1,79 +1,143 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   FlatList,
   TouchableOpacity,
+  RefreshControl,
+  Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
-import { MEAL_LABELS } from '../constants/nutrition';
+import * as Haptics from 'expo-haptics';
+import { SPACING, FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../i18n';
 import { useMeals } from '../hooks/useMeals';
 import MealCard from '../components/MealCard';
-import type { DailySummary } from '../types';
+import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { DailySummary, MealEntry } from '../types';
+
+const MEAL_I18N: Record<string, string> = {
+  breakfast: 'meal_breakfast',
+  lunch: 'meal_lunch',
+  dinner: 'meal_dinner',
+  snack: 'meal_snack',
+};
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HistoryScreen() {
-  const { datesWithMeals, getDailySummary, deleteMeal, isLoading } = useMeals();
+  const navigation = useNavigation<Nav>();
+  const { colors } = useTheme();
+  const { t, lang } = useI18n();
+  const { datesWithMeals, getDailySummary, deleteMeal, copyMealsToToday, isLoading, refresh } = useMeals();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  }, [refresh]);
+
+  const handleCopyDay = useCallback(async (date: string) => {
+    await copyMealsToToday(date);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(t('done'), t('history_copied'));
+  }, [copyMealsToToday, t]);
+
+  const handleEditMeal = useCallback((meal: MealEntry) => {
+    navigation.navigate('ConfirmMeal', { food: meal.foodItem, editMeal: meal });
+  }, [navigation]);
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.loadingText}>Загрузка...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{t('loading')}</Text>
       </View>
     );
   }
 
   if (datesWithMeals.length === 0) {
     return (
-      <View style={styles.centered}>
-        <Ionicons name="calendar-outline" size={48} color={COLORS.border} />
-        <Text style={styles.emptyText}>История пуста</Text>
-        <Text style={styles.emptyHint}>Добавьте первый приём пищи на главном экране</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Ionicons name="calendar-outline" size={48} color={colors.border} />
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('history_empty')}</Text>
+        <Text style={[styles.emptyHint, { color: colors.border }]}>{t('history_empty_hint')}</Text>
       </View>
     );
   }
 
+  const dateLocale = lang === 'pl' ? 'pl-PL' : lang === 'en' ? 'en-US' : 'ru-RU';
+
+  const formatDate = (dateStr: string): string => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+    if (dateStr === todayStr) return t('history_today');
+    if (dateStr === yesterdayStr) return t('history_yesterday');
+
+    return d.toLocaleDateString(dateLocale, { weekday: 'short', day: 'numeric', month: 'long' });
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>История</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>{t('history_title')}</Text>
       <FlatList
         data={datesWithMeals}
         keyExtractor={(item) => item}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
         renderItem={({ item: date }) => {
           const summary = getDailySummary(date);
           const isExpanded = expandedDate === date;
 
           return (
-            <View style={styles.dayCard}>
+            <View style={[styles.dayCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TouchableOpacity
                 style={styles.dayHeader}
                 onPress={() => setExpandedDate(isExpanded ? null : date)}
                 activeOpacity={0.7}
               >
-                <View>
-                  <Text style={styles.dayDate}>{formatDateRu(date)}</Text>
-                  <Text style={styles.daySummary}>
-                    {summary.totalCalories} ккал · Б {Math.round(summary.totalProtein)} · Ж {Math.round(summary.totalFat)} · У {Math.round(summary.totalCarbs)}
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.dayDate, { color: colors.text }]}>{formatDate(date)}</Text>
+                  <Text style={[styles.daySummary, { color: colors.textSecondary }]}>
+                    {summary.totalCalories} {t('kcal')} · P {Math.round(summary.totalProtein)} · F {Math.round(summary.totalFat)} · C {Math.round(summary.totalCarbs)}
                   </Text>
                 </View>
+                <TouchableOpacity
+                  style={[styles.copyBtn, { backgroundColor: `${colors.primary}15` }]}
+                  onPress={() => handleCopyDay(date)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.copyBtnText, { color: colors.primary }]}>{t('history_copy')}</Text>
+                </TouchableOpacity>
                 <Ionicons
                   name={isExpanded ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  color={COLORS.textSecondary}
+                  color={colors.textSecondary}
+                  style={{ marginLeft: SPACING.sm }}
                 />
               </TouchableOpacity>
 
               {isExpanded && (
-                <View style={styles.dayContent}>
+                <View style={[styles.dayContent, { borderTopColor: colors.border }]}>
                   {groupByMealType(summary).map(({ type, meals }) => (
                     <View key={type} style={styles.mealGroup}>
-                      <Text style={styles.mealGroupTitle}>{MEAL_LABELS[type] ?? type}</Text>
+                      <Text style={[styles.mealGroupTitle, { color: colors.text }]}>{t(MEAL_I18N[type] as any)}</Text>
                       {meals.map((meal) => (
-                        <MealCard key={meal.id} meal={meal} onDelete={deleteMeal} />
+                        <MealCard key={meal.id} meal={meal} onDelete={deleteMeal} onPress={handleEditMeal} />
                       ))}
                     </View>
                   ))}
@@ -88,24 +152,6 @@ export default function HistoryScreen() {
 }
 
 /* ---- Helpers ---- */
-
-function formatDateRu(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
-
-  if (dateStr === todayStr) return 'Сегодня';
-  if (dateStr === yesterdayStr) return 'Вчера';
-
-  return d.toLocaleDateString('ru-RU', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'long',
-  });
-}
 
 function groupByMealType(summary: DailySummary) {
   const order = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -125,84 +171,20 @@ function groupByMealType(summary: DailySummary) {
 /* ---- Styles ---- */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.md,
-  },
-  list: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: 40,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.background,
-    padding: SPACING.lg,
-  },
-  loadingText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-  },
-  emptyText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.sm,
-  },
-  emptyHint: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.border,
-    marginTop: SPACING.xs,
-    textAlign: 'center',
-  },
-
-  // Day card
-  dayCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.sm,
-    overflow: 'hidden',
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: SPACING.md,
-  },
-  dayDate: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  daySummary: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  dayContent: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: SPACING.sm,
-  },
-  mealGroup: {
-    marginBottom: SPACING.xs,
-  },
-  mealGroupTitle: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
+  container: { flex: 1, paddingTop: 60 },
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, paddingHorizontal: SPACING.lg, marginBottom: SPACING.md },
+  list: { paddingHorizontal: SPACING.lg, paddingBottom: 40 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
+  loadingText: { fontSize: FONT_SIZE.md },
+  emptyText: { fontSize: FONT_SIZE.md, marginTop: SPACING.sm },
+  emptyHint: { fontSize: FONT_SIZE.sm, marginTop: SPACING.xs, textAlign: 'center' },
+  dayCard: { borderRadius: 20, borderWidth: 1, marginBottom: SPACING.sm, overflow: 'hidden' },
+  dayHeader: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
+  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: 8 },
+  copyBtnText: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
+  dayDate: { fontSize: FONT_SIZE.md, fontWeight: '600' },
+  daySummary: { fontSize: FONT_SIZE.xs, marginTop: 2 },
+  dayContent: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md, borderTopWidth: 1, paddingTop: SPACING.sm },
+  mealGroup: { marginBottom: SPACING.xs },
+  mealGroupTitle: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginBottom: SPACING.xs },
 });

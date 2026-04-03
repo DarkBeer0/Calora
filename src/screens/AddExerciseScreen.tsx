@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
+import { SPACING, FONT_SIZE } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../i18n';
 import { EXERCISES, calculateCaloriesBurned } from '../constants/exercises';
 import { useProfile } from '../hooks/useProfile';
 import { useExercises } from '../hooks/useExercises';
@@ -18,8 +20,23 @@ import type { ExerciseEntry } from '../types';
 
 const exerciseKeys = Object.keys(EXERCISES);
 
+const EXERCISE_I18N: Record<string, string> = {
+  walking: 'ex_walking',
+  running: 'ex_running',
+  cycling: 'ex_cycling',
+  swimming: 'ex_swimming',
+  gym: 'ex_gym',
+  yoga: 'ex_yoga',
+  hiit: 'ex_hiit',
+  dancing: 'ex_dancing',
+  stretching: 'ex_stretching',
+  other: 'ex_other',
+};
+
 export default function AddExerciseScreen() {
   const navigation = useNavigation();
+  const { colors, isDark } = useTheme();
+  const { t } = useI18n();
   const { profile } = useProfile();
   const { addExercise } = useExercises();
 
@@ -36,7 +53,7 @@ export default function AddExerciseScreen() {
 
   const handleConfirm = async () => {
     if (durationNum <= 0) {
-      Alert.alert('Ошибка', 'Укажите длительность');
+      Alert.alert(t('error'), t('exercise_error_duration'));
       return;
     }
 
@@ -45,7 +62,7 @@ export default function AddExerciseScreen() {
       userId: '1',
       date: new Date().toISOString().slice(0, 10),
       exerciseType: selected,
-      name: exercise.label,
+      name: t(EXERCISE_I18N[selected] as any),
       durationMin: durationNum,
       caloriesBurned: burned,
       createdAt: new Date().toISOString(),
@@ -56,8 +73,8 @@ export default function AddExerciseScreen() {
   };
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
-      <Text style={styles.sectionLabel}>Тип упражнения</Text>
+    <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.container}>
+      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('exercise_type')}</Text>
       <View style={styles.grid}>
         {exerciseKeys.map((key) => {
           const info = EXERCISES[key];
@@ -65,33 +82,33 @@ export default function AddExerciseScreen() {
           return (
             <TouchableOpacity
               key={key}
-              style={[styles.exerciseBtn, active && styles.exerciseBtnActive]}
+              style={[styles.exerciseBtn, { backgroundColor: colors.surface, borderColor: colors.border }, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
               onPress={() => setSelected(key)}
             >
               <Ionicons
                 name={info.icon as any}
                 size={24}
-                color={active ? '#fff' : COLORS.text}
+                color={active ? '#fff' : colors.text}
               />
-              <Text style={[styles.exerciseLabel, active && styles.exerciseLabelActive]}>
-                {info.label}
+              <Text style={[styles.exerciseLabel, { color: colors.text }, active && styles.exerciseLabelActive]}>
+                {t(EXERCISE_I18N[key] as any)}
               </Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      <Text style={styles.sectionLabel}>Длительность</Text>
-      <View style={styles.durationRow}>
+      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('exercise_duration')}</Text>
+      <View style={[styles.durationRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <TextInput
-          style={styles.durationInput}
+          style={[styles.durationInput, { color: colors.text }]}
           value={duration}
           onChangeText={setDuration}
           keyboardType="numeric"
           maxLength={4}
           selectTextOnFocus
         />
-        <Text style={styles.durationSuffix}>мин</Text>
+        <Text style={[styles.durationSuffix, { color: colors.textSecondary }]}>{t('min')}</Text>
       </View>
 
       {/* Quick duration */}
@@ -99,174 +116,69 @@ export default function AddExerciseScreen() {
         {[15, 30, 45, 60, 90].map((m) => (
           <TouchableOpacity
             key={m}
-            style={[styles.quickBtn, duration === String(m) && styles.quickBtnActive]}
+            style={[styles.quickBtn, { backgroundColor: colors.surface, borderColor: colors.border }, duration === String(m) && { backgroundColor: colors.primary, borderColor: colors.primary }]}
             onPress={() => setDuration(String(m))}
           >
-            <Text style={[styles.quickText, duration === String(m) && styles.quickTextActive]}>
-              {m} мин
+            <Text style={[styles.quickText, { color: colors.text }, duration === String(m) && styles.quickTextActive]}>
+              {m} {t('min')}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Preview */}
-      <View style={styles.previewCard}>
-        <Ionicons name="flame" size={28} color={COLORS.error} />
-        <Text style={styles.previewBurned}>{burned}</Text>
-        <Text style={styles.previewLabel}>ккал будет сожжено</Text>
-        <Text style={styles.previewMeta}>
-          {exercise.label} · {durationNum} мин · MET {exercise.met}
+      <View style={[styles.previewCard, { backgroundColor: isDark ? 'rgba(239,83,80,0.1)' : '#FFF5F3', borderColor: isDark ? 'rgba(239,83,80,0.2)' : '#FFE0DB' }]}>
+        <Ionicons name="flame" size={28} color={colors.error} />
+        <Text style={[styles.previewBurned, { color: colors.error }]}>{burned}</Text>
+        <Text style={[styles.previewLabel, { color: colors.textSecondary }]}>{t('exercise_burned')}</Text>
+        <Text style={[styles.previewMeta, { color: colors.border }]}>
+          {t(EXERCISE_I18N[selected] as any)} · {durationNum} {t('min')} · MET {exercise.met}
         </Text>
       </View>
 
       {/* Confirm */}
-      <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} activeOpacity={0.8}>
+      <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: colors.error }]} onPress={handleConfirm} activeOpacity={0.8}>
         <Ionicons name="flame" size={20} color="#fff" />
-        <Text style={styles.confirmText}>Добавить упражнение</Text>
+        <Text style={styles.confirmText}>{t('exercise_add')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  container: {
-    padding: SPACING.lg,
-    paddingBottom: 40,
-  },
-  sectionLabel: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-  },
-
-  // Grid
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginBottom: SPACING.lg,
-  },
+  scroll: { flex: 1 },
+  container: { padding: SPACING.lg, paddingBottom: 40 },
+  sectionLabel: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginBottom: SPACING.sm },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.lg },
   exerciseBtn: {
-    width: '30%',
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    width: '30%', flexGrow: 1, alignItems: 'center',
+    paddingVertical: SPACING.md, borderRadius: 14, borderWidth: 1,
   },
-  exerciseBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  exerciseLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.text,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  exerciseLabelActive: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-
-  // Duration
+  exerciseLabel: { fontSize: FONT_SIZE.xs, marginTop: 4, fontWeight: '500' },
+  exerciseLabelActive: { color: '#fff', fontWeight: '700' },
   durationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 14, borderWidth: 1, paddingHorizontal: SPACING.md, marginBottom: SPACING.sm,
   },
-  durationInput: {
-    flex: 1,
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: '700',
-    color: COLORS.text,
-    paddingVertical: SPACING.sm,
-  },
-  durationSuffix: {
-    fontSize: FONT_SIZE.lg,
-    color: COLORS.textSecondary,
-  },
-
-  // Quick
-  quickRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    marginBottom: SPACING.lg,
-  },
+  durationInput: { flex: 1, fontSize: FONT_SIZE.xxl, fontWeight: '700', paddingVertical: SPACING.sm },
+  durationSuffix: { fontSize: FONT_SIZE.lg },
+  quickRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
   quickBtn: {
-    flex: 1,
-    paddingVertical: SPACING.sm,
-    borderRadius: 10,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
+    flex: 1, paddingVertical: SPACING.sm, borderRadius: 12,
+    borderWidth: 1, alignItems: 'center',
   },
-  quickBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  quickText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.text,
-  },
-  quickTextActive: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-
-  // Preview
+  quickText: { fontSize: FONT_SIZE.xs },
+  quickTextActive: { color: '#fff', fontWeight: '700' },
   previewCard: {
-    alignItems: 'center',
-    backgroundColor: '#FFF5F3',
-    borderRadius: 16,
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: '#FFE0DB',
+    alignItems: 'center', borderRadius: 20, padding: SPACING.lg,
+    marginBottom: SPACING.lg, borderWidth: 1,
   },
-  previewBurned: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: COLORS.error,
-    marginTop: 4,
-  },
-  previewLabel: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  previewMeta: {
-    fontSize: FONT_SIZE.xs,
-    color: '#BDBDBD',
-    marginTop: SPACING.xs,
-  },
-
-  // Confirm
+  previewBurned: { fontSize: 40, fontWeight: '800', marginTop: 4 },
+  previewLabel: { fontSize: FONT_SIZE.sm, marginTop: 2 },
+  previewMeta: { fontSize: FONT_SIZE.xs, marginTop: SPACING.xs },
   confirmBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    backgroundColor: COLORS.error,
-    paddingVertical: 16,
-    borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACING.sm, paddingVertical: 16, borderRadius: 14,
   },
-  confirmText: {
-    color: '#fff',
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '700',
-  },
+  confirmText: { color: '#fff', fontSize: FONT_SIZE.lg, fontWeight: '700' },
 });
