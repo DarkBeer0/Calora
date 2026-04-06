@@ -17,6 +17,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
 import { useDebounce } from '../hooks/useDebounce';
 import { useFoods } from '../hooks/useFoods';
+import { useRecipes, recipeToFoodItem } from '../hooks/useRecipes';
 import { searchProducts } from '../services/openfoodfacts';
 import type { FoodItem } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -28,6 +29,7 @@ export default function AddMealScreen() {
   const { colors } = useTheme();
   const { t } = useI18n();
   const { recentFoods, favoriteFoods } = useFoods();
+  const { recipes } = useRecipes();
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodItem[]>([]);
@@ -79,7 +81,11 @@ export default function AddMealScreen() {
 
   // Show recent/favorites when no query
   const showBrowse = !query.trim() && !searched;
+  const recipeFoods = recipes.map(recipeToFoodItem);
   const sections = [];
+  if (recipeFoods.length > 0) {
+    sections.push({ title: t('recipe_select'), data: recipeFoods });
+  }
   if (favoriteFoods.length > 0) {
     sections.push({ title: t('favorite_foods'), data: favoriteFoods });
   }

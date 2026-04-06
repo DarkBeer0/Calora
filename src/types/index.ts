@@ -70,6 +70,35 @@ export interface WaterEntry {
   createdAt: string;
 }
 
+export interface WeightEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  weight: number; // kg
+  createdAt: string;
+}
+
+export interface RecipeIngredient {
+  foodItem: FoodItem;
+  grams: number;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  ingredients: RecipeIngredient[];
+  servings: number; // total number of portions
+  // Computed per full recipe — divide by servings for per-serving values
+  totalCalories: number;
+  totalProtein: number;
+  totalFat: number;
+  totalCarbs: number;
+  totalFiber: number;
+  totalSugars: number;
+  totalSaturatedFat: number;
+  totalSalt: number;
+  createdAt: string;
+}
+
 export interface ExerciseEntry {
   id: string;
   userId: string;

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
-import type { FoodItem } from '../types';
+import type { FoodItem, Recipe } from '../types';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
@@ -15,6 +15,9 @@ import ConfirmMealScreen from '../screens/ConfirmMealScreen';
 import AddExerciseScreen from '../screens/AddExerciseScreen';
 import BarcodeScannerScreen from '../screens/BarcodeScannerScreen';
 import AddCustomFoodScreen from '../screens/AddCustomFoodScreen';
+import AnalyticsScreen from '../screens/AnalyticsScreen';
+import RecipesScreen from '../screens/RecipesScreen';
+import AddRecipeScreen from '../screens/AddRecipeScreen';
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -23,11 +26,14 @@ export type RootStackParamList = {
   AddExercise: undefined;
   BarcodeScanner: undefined;
   AddCustomFood: { barcode?: string } | undefined;
+  AddRecipe: { editRecipe?: Recipe } | undefined;
 };
 
 export type TabParamList = {
   Dashboard: undefined;
   History: undefined;
+  Recipes: undefined;
+  Analytics: undefined;
   Profile: undefined;
 };
 
@@ -72,6 +78,26 @@ function TabNavigator() {
           tabBarLabel: t('tab_history'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Recipes"
+        component={RecipesScreen}
+        options={{
+          tabBarLabel: t('recipe_select'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{
+          tabBarLabel: t('tab_analytics'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="stats-chart" size={size} color={color} />
           ),
         }}
       />
@@ -121,6 +147,7 @@ export default function RootNavigator() {
         <Stack.Screen name="AddExercise" component={AddExerciseScreen} options={{ title: t('exercise_title'), presentation: 'modal', headerTintColor: colors.error }} />
         <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ title: t('scanner_title'), headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff' }} />
         <Stack.Screen name="AddCustomFood" component={AddCustomFoodScreen} options={{ title: t('custom_food_title'), presentation: 'modal' }} />
+        <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ title: t('recipe_new'), presentation: 'modal' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

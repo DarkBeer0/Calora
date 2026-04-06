@@ -214,7 +214,7 @@ export default function DashboardScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* FAB Overlay — behind everything, catches taps to close */}
+      {/* FAB Speed Dial */}
       {fabOpen && (
         <TouchableOpacity
           style={styles.overlay}
@@ -225,13 +225,12 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       )}
 
-      {/* FAB Speed Dial — column layout, options above main button */}
       <View style={styles.fabContainer} pointerEvents="box-none">
         {fabOpen && (
-          <>
+          <View style={styles.fabOptions} pointerEvents="box-none">
             {/* Exercise option */}
             <Animated.View style={[styles.fabOptionRow, { opacity: fabAnim, transform: [{ scale: fabOption2Scale }] }]}>
-              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('exercise')} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('exercise')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
                 <Text style={[styles.fabLabel, { color: colors.text, backgroundColor: colors.surface }]}>{t('fab_exercise')}</Text>
                 <View style={[styles.fabMini, { backgroundColor: colors.error }]}>
                   <Ionicons name="flame" size={22} color="#fff" />
@@ -241,14 +240,14 @@ export default function DashboardScreen() {
 
             {/* Food option */}
             <Animated.View style={[styles.fabOptionRow, { opacity: fabAnim, transform: [{ scale: fabOption1Scale }] }]}>
-              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('food')} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('food')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
                 <Text style={[styles.fabLabel, { color: colors.text, backgroundColor: colors.surface }]}>{t('fab_food')}</Text>
                 <View style={[styles.fabMini, { backgroundColor: colors.calories }]}>
                   <Ionicons name="restaurant" size={22} color="#fff" />
                 </View>
               </TouchableOpacity>
             </Animated.View>
-          </>
+          </View>
         )}
 
         {/* Main FAB */}
@@ -340,6 +339,7 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
+    elevation: 10,
   },
 
   fabContainer: {
@@ -347,7 +347,14 @@ const styles = StyleSheet.create({
     bottom: 32,
     right: 24,
     alignItems: 'flex-end',
-    zIndex: 11,
+    zIndex: 20,
+    elevation: 20,
+  },
+
+  fabOptions: {
+    alignItems: 'flex-end',
+    zIndex: 21,
+    elevation: 21,
   },
 
   fab: {
@@ -363,10 +370,12 @@ const styles = StyleSheet.create({
   fabOptionTouchable: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 48,
+    paddingVertical: 4,
   },
 
   fabMini: {
-    width: 46, height: 46, borderRadius: 23,
+    width: 48, height: 48, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center',
     elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4,
   },
