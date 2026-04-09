@@ -230,7 +230,7 @@ export default function DashboardScreen() {
           <View style={styles.fabOptions} pointerEvents="box-none">
             {/* Exercise option */}
             <Animated.View style={[styles.fabOptionRow, { opacity: fabAnim, transform: [{ scale: fabOption2Scale }] }]}>
-              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('exercise')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
+              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('exercise')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('fab_exercise')}>
                 <Text style={[styles.fabLabel, { color: colors.text, backgroundColor: colors.surface }]}>{t('fab_exercise')}</Text>
                 <View style={[styles.fabMini, { backgroundColor: colors.error }]}>
                   <Ionicons name="flame" size={22} color="#fff" />
@@ -240,7 +240,7 @@ export default function DashboardScreen() {
 
             {/* Food option */}
             <Animated.View style={[styles.fabOptionRow, { opacity: fabAnim, transform: [{ scale: fabOption1Scale }] }]}>
-              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('food')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
+              <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('food')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('fab_food')}>
                 <Text style={[styles.fabLabel, { color: colors.text, backgroundColor: colors.surface }]}>{t('fab_food')}</Text>
                 <View style={[styles.fabMini, { backgroundColor: colors.calories }]}>
                   <Ionicons name="restaurant" size={22} color="#fff" />
@@ -251,7 +251,7 @@ export default function DashboardScreen() {
         )}
 
         {/* Main FAB */}
-        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={toggleFab} activeOpacity={0.8}>
+        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={toggleFab} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('add')} accessibilityState={{ expanded: fabOpen }}>
           <Animated.View style={{ transform: [{ rotate: fabRotate }] }}>
             <Ionicons name="add" size={32} color="#fff" />
           </Animated.View>

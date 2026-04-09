@@ -8,6 +8,8 @@ import { LineChart, PieChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { Paths, File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
@@ -95,7 +97,7 @@ export default function AnalyticsScreen() {
     const last = dates[dates.length - 1];
     return e.date >= first && e.date <= last;
   });
-  const hasWeightData = weightData.length >= 2;
+  const hasWeightData = weightData.length >= 1;
 
   // Labels: show every Nth label to avoid clutter
   const labelStep = period === 'week' ? 1 : 5;
@@ -112,12 +114,16 @@ export default function AnalyticsScreen() {
     propsForBackgroundLines: { stroke: colors.border, strokeDasharray: '4' },
   };
 
-  const handleAddWeight = () => {
-    const w = parseFloat(weightInput.replace(',', '.'));
-    if (w > 0 && w < 500) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      addWeight(w);
+  const handleAddWeight = async () => {
+    const raw = weightInput.replace(',', '.');
+    const w = parseFloat(raw);
+    if (!w || w <= 0 || w >= 500) return;
+    try {
+      await addWeight(w);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setWeightInput('');
+    } catch (e) {
+      Alert.alert(t('error'), String(e));
     }
   };
 
@@ -140,6 +146,50 @@ export default function AnalyticsScreen() {
     } catch {
       Alert.alert(t('error'), t('analytics_export_error'));
     }
+  };
+
+  const handleImport = () => {
+    Alert.alert(t('analytics_import'), t('analytics_import_confirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('analytics_import_confirm_yes'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const result = await DocumentPicker.getDocumentAsync({
+              type: 'application/json',
+              copyToCacheDirectory: true,
+            });
+            if (result.canceled || !result.assets?.[0]) return;
+
+            const fileUri = result.assets[0].uri;
+            const pickedFile = new File(fileUri);
+            const json = await pickedFile.text();
+            const data = JSON.parse(json);
+
+            // Validate structure
+            if (!data.meals && !data.exercises && !data.water && !data.weight) {
+              Alert.alert(t('error'), t('analytics_import_error'));
+              return;
+            }
+
+            // Write each data set to AsyncStorage
+            if (data.meals) await AsyncStorage.setItem('calora_meals', JSON.stringify(data.meals));
+            if (data.exercises) await AsyncStorage.setItem('calora_exercises', JSON.stringify(data.exercises));
+            if (data.water) await AsyncStorage.setItem('calora_water', JSON.stringify(data.water));
+            if (data.weight) await AsyncStorage.setItem('calora_weight', JSON.stringify(data.weight));
+
+            // Refresh all hooks
+            await Promise.all([refreshMeals(), refreshExercises(), refreshWater(), refreshWeight()]);
+
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert('✓', t('analytics_import_success'));
+          } catch {
+            Alert.alert(t('error'), t('analytics_import_error'));
+          }
+        },
+      },
+    ]);
   };
 
   const pieData = macroSum > 0 ? [
@@ -253,8 +303,21 @@ export default function AnalyticsScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Latest weight badge */}
+          {hasWeightData && (
+            <View style={styles.latestWeightRow}>
+              <Ionicons name="scale-outline" size={18} color="#9C27B0" />
+              <Text style={[styles.latestWeightText, { color: colors.text }]}>
+                {weightData[weightData.length - 1].weight} kg
+              </Text>
+              <Text style={[styles.latestWeightDate, { color: colors.textSecondary }]}>
+                {shortLabel(weightData[weightData.length - 1].date)}
+              </Text>
+            </View>
+          )}
+
           {/* Weight chart */}
-          {hasWeightData ? (
+          {weightData.length >= 2 ? (
             <LineChart
               data={{
                 labels: weightData.map((e, i) => (i === 0 || i === weightData.length - 1) ? shortLabel(e.date) : ''),
@@ -272,24 +335,34 @@ export default function AnalyticsScreen() {
               withVerticalLines={false}
               segments={3}
             />
-          ) : (
+          ) : !hasWeightData ? (
             <View style={styles.emptyChart}>
               <Ionicons name="scale-outline" size={36} color={colors.border} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('analytics_no_weight')}</Text>
               <Text style={[styles.emptyHint, { color: colors.border }]}>{t('analytics_no_weight_hint')}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
-        {/* Export button */}
-        <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={handleExport}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="download-outline" size={20} color={colors.primary} />
-          <Text style={[styles.exportText, { color: colors.primary }]}>{t('analytics_export')}</Text>
-        </TouchableOpacity>
+        {/* Export / Import buttons */}
+        <View style={styles.dataButtons}>
+          <TouchableOpacity
+            style={[styles.dataBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={handleExport}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="download-outline" size={20} color={colors.primary} />
+            <Text style={[styles.dataBtnText, { color: colors.primary }]}>{t('analytics_export')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.dataBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={handleImport}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="push-outline" size={20} color={colors.calories} />
+            <Text style={[styles.dataBtnText, { color: colors.calories }]}>{t('analytics_import')}</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -370,14 +443,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  exportBtn: {
+  dataButtons: { flexDirection: 'row', gap: SPACING.sm },
+  dataBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.sm,
+    gap: SPACING.xs,
     borderRadius: 16,
     borderWidth: 1,
     paddingVertical: SPACING.md,
   },
-  exportText: { fontSize: FONT_SIZE.md, fontWeight: '700' },
+  dataBtnText: { fontSize: FONT_SIZE.sm, fontWeight: '700' },
+
+  latestWeightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    backgroundColor: 'rgba(156,39,176,0.08)',
+    borderRadius: 10,
+  },
+  latestWeightText: { fontSize: FONT_SIZE.lg, fontWeight: '700' },
+  latestWeightDate: { fontSize: FONT_SIZE.xs, marginLeft: 'auto' },
 });

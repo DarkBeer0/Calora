@@ -242,6 +242,28 @@ export const ru = {
   recipe_empty_hint: 'Создайте свой первый рецепт',
   recipe_search_ingredient: 'Поиск ингредиента...',
   recipe_select: 'Рецепты',
+
+  // AI chat
+  ai_chat_placeholder: 'Опишите блюдо: «варёные яйца 2 шт»',
+  ai_thinking: 'Анализирую...',
+  ai_add_to_today: 'Добавить в рацион',
+  ai_no_key: 'AI не настроен',
+  ai_welcome_title: 'Опишите еду словами',
+  ai_welcome_desc: 'AI рассчитает калории, БЖУ и пользу для любого блюда — даже домашнего',
+  ai_example_1: 'Варёные яйца 2 шт',
+  ai_example_2: 'Тарелка борща со сметаной',
+  ai_example_3: 'Овсянка на молоке 250 г',
+  ai_added: 'добавлено',
+  ai_limit_title: 'Лимит запросов',
+  ai_limit_msg: 'Вы использовали все AI-запросы на сегодня. Попробуйте завтра или добавьте продукт вручную.',
+  ai_requests_left: 'запросов',
+
+  // Import
+  analytics_import: 'Импорт данных',
+  analytics_import_success: 'Данные восстановлены',
+  analytics_import_error: 'Ошибка импорта',
+  analytics_import_confirm: 'Импорт заменит текущие данные. Продолжить?',
+  analytics_import_confirm_yes: 'Заменить',
 } as const;
 
 export type TranslationKey = keyof typeof ru;

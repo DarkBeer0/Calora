@@ -1,9 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
-import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 const STORAGE_KEY = 'calora_notif_settings';
+
+// expo-notifications was removed from Expo Go in SDK 53. Loading the module
+// at all auto-registers a push-token listener which warns even inside try/catch.
+// So we only require it in real builds (standalone / dev client).
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let Notifications: typeof import('expo-notifications') | null = null;
+if (!isExpoGo) {
+  try {
+    Notifications = require('expo-notifications');
+    Notifications?.setNotificationHandler?.({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch {
+    // expo-notifications not available
+  }
+}
 
 export interface NotifSettings {
   meals: boolean;
@@ -16,17 +39,6 @@ const DEFAULT_SETTINGS: NotifSettings = {
   water: false,
   summary: false,
 };
-
-// Configure how notifications appear when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 interface MealReminder {
   id: string;
@@ -42,14 +54,14 @@ const MEAL_REMINDERS: MealReminder[] = [
   { id: 'dinner', hour: 19, minute: 0, titleKey: 'notif_dinner_title', bodyKey: 'notif_dinner_body' },
 ];
 
-const WATER_HOURS = [9, 11, 13, 15, 17, 19]; // Every 2 hours from 9 to 19
+const WATER_HOURS = [9, 11, 13, 15, 17, 19];
 
 export function useNotifications() {
   const [settings, setSettings] = useState<NotifSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
+  const [isSupported, setIsSupported] = useState(false);
 
-  // Load settings
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
       if (raw) setSettings(JSON.parse(raw));
@@ -59,15 +71,26 @@ export function useNotifications() {
   }, []);
 
   const checkPermission = async () => {
-    const { status } = await Notifications.getPermissionsAsync();
-    setHasPermission(status === 'granted');
+    if (!Notifications) { setIsSupported(false); return; }
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      setHasPermission(status === 'granted');
+      setIsSupported(true);
+    } catch {
+      setIsSupported(false);
+    }
   };
 
   const requestPermission = async (): Promise<boolean> => {
-    const { status } = await Notifications.requestPermissionsAsync();
-    const granted = status === 'granted';
-    setHasPermission(granted);
-    return granted;
+    if (!Notifications) return false;
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      const granted = status === 'granted';
+      setHasPermission(granted);
+      return granted;
+    } catch {
+      return false;
+    }
   };
 
   const persist = useCallback(async (s: NotifSettings) => {
@@ -75,55 +98,58 @@ export function useNotifications() {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(s));
   }, []);
 
-  // Schedule all notifications based on current settings
   const scheduleAll = useCallback(async (s: NotifSettings, translations: Record<string, string>) => {
-    // Cancel everything first
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (!Notifications) return;
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
 
-    if (s.meals) {
-      for (const meal of MEAL_REMINDERS) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: translations[meal.titleKey] || meal.titleKey,
-            body: translations[meal.bodyKey] || meal.bodyKey,
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour: meal.hour,
-            minute: meal.minute,
-          },
-        });
+      if (s.meals) {
+        for (const meal of MEAL_REMINDERS) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: translations[meal.titleKey] || meal.titleKey,
+              body: translations[meal.bodyKey] || meal.bodyKey,
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DAILY,
+              hour: meal.hour,
+              minute: meal.minute,
+            },
+          });
+        }
       }
-    }
 
-    if (s.water) {
-      for (const hour of WATER_HOURS) {
+      if (s.water) {
+        for (const hour of WATER_HOURS) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: translations['notif_water_title'] || 'Drink water!',
+              body: translations['notif_water_body'] || 'Time to have a glass of water',
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DAILY,
+              hour,
+              minute: 0,
+            },
+          });
+        }
+      }
+
+      if (s.summary) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: translations['notif_water_title'] || 'Drink water!',
-            body: translations['notif_water_body'] || 'Time to have a glass of water',
+            title: translations['notif_summary_title'] || 'Daily summary',
+            body: translations['notif_summary_body'] || 'Check your stats for today',
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour,
+            hour: 21,
             minute: 0,
           },
         });
       }
-    }
-
-    if (s.summary) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: translations['notif_summary_title'] || 'Daily summary',
-          body: translations['notif_summary_body'] || 'Check your stats for today',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: 21,
-          minute: 0,
-        },
-      });
+    } catch {
+      // Notification scheduling failed (Expo Go limitation)
     }
   }, []);
 
@@ -131,7 +157,6 @@ export function useNotifications() {
     key: keyof NotifSettings,
     translations: Record<string, string>,
   ) => {
-    // Request permission if enabling for the first time
     if (!settings[key] && !hasPermission) {
       const granted = await requestPermission();
       if (!granted) return;
@@ -146,6 +171,7 @@ export function useNotifications() {
     settings,
     isLoading,
     hasPermission,
+    isSupported,
     toggleSetting,
   };
 }

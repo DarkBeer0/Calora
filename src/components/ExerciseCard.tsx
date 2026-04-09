@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ interface ExerciseCardProps {
   onDelete?: (id: string) => void;
 }
 
-export default function ExerciseCard({ exercise, icon, onDelete }: ExerciseCardProps) {
+function ExerciseCardInner({ exercise, icon, onDelete }: ExerciseCardProps) {
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
   const swipeableRef = useRef<Swipeable>(null);
@@ -75,6 +75,9 @@ export default function ExerciseCard({ exercise, icon, onDelete }: ExerciseCardP
     </Animated.View>
   );
 }
+
+const ExerciseCard = memo(ExerciseCardInner);
+export default ExerciseCard;
 
 const styles = StyleSheet.create({
   card: {

@@ -5,20 +5,23 @@ import { I18nContext, useI18nProvider } from './src/i18n';
 import { useProfile } from './src/hooks/useProfile';
 import RootNavigator from './src/navigation/RootNavigator';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 export default function App() {
   const theme = useThemeProvider();
   const i18n = useI18nProvider();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <I18nContext.Provider value={i18n}>
-        <ThemeContext.Provider value={theme}>
-          <AppContent />
-          <StatusBar style={theme.isDark ? 'light' : 'dark'} />
-        </ThemeContext.Provider>
-      </I18nContext.Provider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <I18nContext.Provider value={i18n}>
+          <ThemeContext.Provider value={theme}>
+            <AppContent />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+          </ThemeContext.Provider>
+        </I18nContext.Provider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 

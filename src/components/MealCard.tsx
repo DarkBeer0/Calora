@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ interface MealCardProps {
   onPress?: (meal: MealEntry) => void;
 }
 
-export default function MealCard({ meal, onDelete, onPress }: MealCardProps) {
+function MealCardInner({ meal, onDelete, onPress }: MealCardProps) {
   const { colors } = useTheme();
   const { t } = useI18n();
   const swipeableRef = useRef<Swipeable>(null);
@@ -40,7 +40,7 @@ export default function MealCard({ meal, onDelete, onPress }: MealCardProps) {
   };
 
   const renderRightActions = () => (
-    <TouchableOpacity style={[styles.swipeAction, { backgroundColor: colors.error }]} onPress={handleDelete}>
+    <TouchableOpacity style={[styles.swipeAction, { backgroundColor: colors.error }]} onPress={handleDelete} accessibilityRole="button" accessibilityLabel={t('delete')}>
       <Ionicons name="trash-outline" size={22} color="#fff" />
       <Text style={styles.swipeActionText}>{t('delete')}</Text>
     </TouchableOpacity>
@@ -61,7 +61,12 @@ export default function MealCard({ meal, onDelete, onPress }: MealCardProps) {
   );
 
   const cardContent = onPress ? (
-    <TouchableOpacity activeOpacity={0.7} onPress={() => onPress(meal)}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => onPress(meal)}
+      accessibilityRole="button"
+      accessibilityLabel={`${meal.foodItem.name}, ${meal.calories} ${t('kcal')}`}
+    >
       {cardInner}
     </TouchableOpacity>
   ) : cardInner;
@@ -82,6 +87,9 @@ export default function MealCard({ meal, onDelete, onPress }: MealCardProps) {
     </Animated.View>
   );
 }
+
+const MealCard = memo(MealCardInner);
+export default MealCard;
 
 const styles = StyleSheet.create({
   card: {

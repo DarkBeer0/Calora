@@ -31,7 +31,7 @@ export default function ProfileScreen() {
   const { colors, isDark, toggle: toggleTheme } = useTheme();
   const { t, lang, setLang } = useI18n();
   const { profile, saveProfile, isLoading } = useProfile();
-  const { settings: notifSettings, toggleSetting: toggleNotif } = useNotifications();
+  const { settings: notifSettings, toggleSetting: toggleNotif, isSupported: notifSupported } = useNotifications();
 
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
@@ -197,7 +197,9 @@ export default function ProfileScreen() {
         ))}
       </View>
 
-      {/* Notifications */}
+      {/* Notifications — only show if supported (not Expo Go) */}
+      {notifSupported && (
+      <>
       <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('notif_section')}</Text>
       <View style={styles.notifList}>
         <NotifToggle
@@ -243,6 +245,8 @@ export default function ProfileScreen() {
           colors={colors}
         />
       </View>
+      </>
+      )}
 
       {/* Save button */}
       <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave} activeOpacity={0.8}>

@@ -77,6 +77,9 @@ export default function WaterWidget({ todayTotal, goal, onAdd, onUndo }: WaterWi
         style={styles.header}
         onPress={() => setExpanded(!expanded)}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('water_title')}: ${todayTotal} ${t('water_of')} ${goal} ${t('water_ml')}`}
+        accessibilityState={{ expanded }}
       >
         <View style={styles.headerLeft}>
           {/* Glass visualization */}
@@ -112,6 +115,8 @@ export default function WaterWidget({ todayTotal, goal, onAdd, onUndo }: WaterWi
                 style={[styles.addBtn, { backgroundColor: waterBg }]}
                 onPress={() => handleAdd(ml)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`${t('add')} ${ml} ${t('water_ml')}`}
               >
                 <Text style={[styles.addBtnText, { color: waterColor }]}>+{ml}</Text>
               </TouchableOpacity>

@@ -1,209 +1,510 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   TextInput,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  SectionList,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
-import { useDebounce } from '../hooks/useDebounce';
 import { useFoods } from '../hooks/useFoods';
+import { useMeals } from '../hooks/useMeals';
 import { useRecipes, recipeToFoodItem } from '../hooks/useRecipes';
-import { searchProducts } from '../services/openfoodfacts';
-import type { FoodItem } from '../types';
+import { analyzeFoodText, aiAnalysisToFoodItem, hasAIKey, type AIFoodAnalysis } from '../services/aiNutrition';
+import { calculateNutrition } from '../utils/nutrition';
+import type { FoodItem, MealEntry } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+const DAILY_LIMIT = 10;
+const LIMIT_STORAGE_KEY = 'calora_ai_daily';
+
+type ChatMessage =
+  | { id: string; type: 'user'; text: string }
+  | { id: string; type: 'ai'; food: FoodItem; analysis: AIFoodAnalysis; grams: number; added?: boolean }
+  | { id: string; type: 'error'; text: string }
+  | { id: string; type: 'browse' };
+
+function uid() {
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getMealTypeByTime(): MealEntry['mealType'] {
+  const h = new Date().getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 19) return 'dinner';
+  return 'snack';
+}
+
 export default function AddMealScreen() {
   const navigation = useNavigation<Nav>();
-  const { colors } = useTheme();
-  const { t } = useI18n();
-  const { recentFoods, favoriteFoods } = useFoods();
+  const { colors, isDark } = useTheme();
+  const { t, lang } = useI18n();
+  const insets = useSafeAreaInsets();
+  const { recentFoods, favoriteFoods, addRecent } = useFoods();
+  const { addMeal } = useMeals();
   const { recipes } = useRecipes();
 
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<FoodItem[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [input, setInput] = useState('');
+  const [isThinking, setIsThinking] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([{ id: 'browse', type: 'browse' }]);
+  const [usedToday, setUsedToday] = useState(0);
+  const listRef = useRef<FlatList>(null);
 
-  const debouncedQuery = useDebounce(query.trim(), 500);
-
+  // Load daily usage
   useEffect(() => {
-    if (!debouncedQuery) {
-      setResults([]);
-      setSearched(false);
+    AsyncStorage.getItem(LIMIT_STORAGE_KEY).then((raw) => {
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.date === todayKey()) {
+          setUsedToday(data.count);
+        }
+      }
+    });
+  }, []);
+
+  const incrementUsage = useCallback(async () => {
+    const newCount = usedToday + 1;
+    setUsedToday(newCount);
+    await AsyncStorage.setItem(LIMIT_STORAGE_KEY, JSON.stringify({ date: todayKey(), count: newCount }));
+  }, [usedToday]);
+
+  const remaining = DAILY_LIMIT - usedToday;
+
+  const scrollToEnd = useCallback(() => {
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+  }, []);
+
+  const handleSend = useCallback(async () => {
+    const text = input.trim();
+    if (!text || isThinking) return;
+
+    if (remaining <= 0) {
+      Alert.alert(t('ai_limit_title'), t('ai_limit_msg'));
       return;
     }
 
-    let cancelled = false;
-    setIsSearching(true);
-    setSearched(true);
+    Haptics.selectionAsync();
+    setMessages((prev) => [...prev, { id: uid(), type: 'user', text }]);
+    setInput('');
+    setIsThinking(true);
+    scrollToEnd();
 
-    searchProducts(debouncedQuery)
-      .then((items) => { if (!cancelled) setResults(items); })
-      .catch(() => { if (!cancelled) setResults([]); })
-      .finally(() => { if (!cancelled) setIsSearching(false); });
+    try {
+      if (!hasAIKey()) throw new Error(t('ai_no_key'));
+      const analysis = await analyzeFoodText(text, lang);
+      const food = aiAnalysisToFoodItem(analysis);
+      setMessages((prev) => [...prev, {
+        id: uid(), type: 'ai', food, analysis,
+        grams: Math.round(analysis.totalGrams),
+      }]);
+      await incrementUsage();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      setMessages((prev) => [...prev, { id: uid(), type: 'error', text: msg }]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsThinking(false);
+      scrollToEnd();
+    }
+  }, [input, isThinking, remaining, lang, t, scrollToEnd, incrementUsage]);
 
-    return () => { cancelled = true; };
-  }, [debouncedQuery]);
+  const updateGrams = useCallback((msgId: string, newGrams: number) => {
+    setMessages((prev) => prev.map((m) =>
+      m.id === msgId && m.type === 'ai' ? { ...m, grams: newGrams } : m
+    ));
+  }, []);
 
-  const handleSelect = (food: FoodItem) => {
-    navigation.navigate('ConfirmMeal', { food });
-  };
+  const handleDirectAdd = useCallback((msg: Extract<ChatMessage, { type: 'ai' }>) => {
+    const { food, grams } = msg;
+    const nutrition = calculateNutrition(food, grams);
+    const entry: MealEntry = {
+      id: Date.now().toString(),
+      userId: '1',
+      date: todayKey(),
+      mealType: getMealTypeByTime(),
+      foodItem: food,
+      grams,
+      ...nutrition,
+      createdAt: new Date().toISOString(),
+    };
+    addMeal(entry);
+    addRecent(food);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-  const renderFoodCard = (item: FoodItem) => (
-    <TouchableOpacity
-      style={[styles.foodCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      onPress={() => handleSelect(item)}
-    >
-      <View style={styles.foodInfo}>
-        <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
-        <Text style={[styles.foodKcal, { color: colors.textSecondary }]}>{item.caloriesPer100g} {t('add_meal_per100g')}</Text>
-      </View>
-      <View style={styles.foodMacros}>
-        <Text style={[styles.macroChip, { color: colors.protein }]}>P {item.proteinPer100g}</Text>
-        <Text style={[styles.macroChip, { color: colors.fat }]}>F {item.fatPer100g}</Text>
-        <Text style={[styles.macroChip, { color: colors.carbs }]}>C {item.carbsPer100g}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.border} />
-    </TouchableOpacity>
+    setMessages((prev) => prev.map((m) =>
+      m.id === msg.id && m.type === 'ai' ? { ...m, added: true } : m
+    ));
+  }, [addMeal, addRecent]);
+
+  // ---- Renderers ----
+
+  const renderUser = (m: Extract<ChatMessage, { type: 'user' }>) => (
+    <View style={[styles.userBubble, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
+      <Text style={[styles.userText, { color: colors.text }]}>{m.text}</Text>
+    </View>
   );
 
-  // Show recent/favorites when no query
-  const showBrowse = !query.trim() && !searched;
-  const recipeFoods = recipes.map(recipeToFoodItem);
-  const sections = [];
-  if (recipeFoods.length > 0) {
-    sections.push({ title: t('recipe_select'), data: recipeFoods });
-  }
-  if (favoriteFoods.length > 0) {
-    sections.push({ title: t('favorite_foods'), data: favoriteFoods });
-  }
-  if (recentFoods.length > 0) {
-    sections.push({ title: t('recent_foods'), data: recentFoods });
-  }
+  const renderError = (m: Extract<ChatMessage, { type: 'error' }>) => (
+    <View style={[styles.errorBubble, { backgroundColor: isDark ? 'rgba(239,83,80,0.1)' : '#FFF5F5' }]}>
+      <Ionicons name="alert-circle" size={16} color={colors.error} />
+      <Text style={[styles.errorText, { color: colors.error }]} numberOfLines={3}>{m.text}</Text>
+    </View>
+  );
+
+  const renderAI = (m: Extract<ChatMessage, { type: 'ai' }>) => {
+    const { food, analysis, grams, added } = m;
+    const totalKcal = Math.round((food.caloriesPer100g * grams) / 100);
+    const totalP = Math.round((food.proteinPer100g * grams) / 10) / 10;
+    const totalF = Math.round((food.fatPer100g * grams) / 10) / 10;
+    const totalC = Math.round((food.carbsPer100g * grams) / 10) / 10;
+
+    if (added) {
+      return (
+        <View style={[styles.addedCard, { backgroundColor: isDark ? 'rgba(76,175,80,0.08)' : '#F1F8E9' }]}>
+          <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+          <Text style={[styles.addedText, { color: colors.primary }]}>
+            {food.name} · {totalKcal} {t('kcal')} {t('ai_added')}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[styles.aiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {/* Name + calories hero */}
+        <Text style={[styles.aiName, { color: colors.text }]}>{food.name}</Text>
+
+        <View style={styles.kcalRow}>
+          <Text style={[styles.kcalValue, { color: colors.text }]}>{totalKcal}</Text>
+          <Text style={[styles.kcalLabel, { color: colors.textSecondary }]}>{t('kcal')}</Text>
+        </View>
+
+        {/* Editable grams */}
+        <View style={[styles.gramsRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
+          <Ionicons name="scale-outline" size={14} color={colors.textSecondary} />
+          <TextInput
+            style={[styles.gramsInput, { color: colors.text }]}
+            value={String(grams)}
+            onChangeText={(v) => {
+              const n = parseInt(v, 10);
+              if (!isNaN(n) && n >= 0 && n <= 9999) updateGrams(m.id, n);
+              else if (v === '') updateGrams(m.id, 0);
+            }}
+            keyboardType="number-pad"
+            maxLength={4}
+            selectTextOnFocus
+          />
+          <Text style={[styles.gramsUnit, { color: colors.textSecondary }]}>{t('g')}</Text>
+        </View>
+
+        {/* Macros - subtle */}
+        <View style={styles.macrosRow}>
+          <Text style={[styles.macroItem, { color: colors.textSecondary }]}>
+            {t('dash_protein')} {totalP}{t('g')}
+          </Text>
+          <Text style={[styles.macroDot, { color: colors.border }]}>·</Text>
+          <Text style={[styles.macroItem, { color: colors.textSecondary }]}>
+            {t('dash_fat')} {totalF}{t('g')}
+          </Text>
+          <Text style={[styles.macroDot, { color: colors.border }]}>·</Text>
+          <Text style={[styles.macroItem, { color: colors.textSecondary }]}>
+            {t('dash_carbs')} {totalC}{t('g')}
+          </Text>
+        </View>
+
+        {/* Benefits - compact */}
+        {analysis.benefits ? (
+          <Text style={[styles.benefitsText, { color: colors.textSecondary }]}>
+            {analysis.benefits}
+          </Text>
+        ) : null}
+
+        {/* Add button */}
+        <TouchableOpacity
+          style={[styles.addBtn, { backgroundColor: colors.primary }]}
+          onPress={() => handleDirectAdd(m)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={18} color="#fff" />
+          <Text style={styles.addBtnText}>{t('ai_add_to_today')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderBrowse = () => {
+    const recipeFoods = recipes.map(recipeToFoodItem);
+    const sections: { title: string; data: FoodItem[] }[] = [];
+    if (recipeFoods.length > 0) sections.push({ title: t('recipe_select'), data: recipeFoods.slice(0, 5) });
+    if (favoriteFoods.length > 0) sections.push({ title: t('favorite_foods'), data: favoriteFoods.slice(0, 5) });
+    if (recentFoods.length > 0) sections.push({ title: t('recent_foods'), data: recentFoods.slice(0, 5) });
+
+    return (
+      <View style={styles.browseWrap}>
+        <View style={[styles.welcomeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="sparkles" size={22} color={colors.primary} />
+          <Text style={[styles.welcomeTitle, { color: colors.text }]}>{t('ai_welcome_title')}</Text>
+          <Text style={[styles.welcomeDesc, { color: colors.textSecondary }]}>{t('ai_welcome_desc')}</Text>
+
+          <View style={styles.examplesWrap}>
+            {[t('ai_example_1'), t('ai_example_2'), t('ai_example_3')].map((ex) => (
+              <TouchableOpacity
+                key={ex}
+                style={[styles.exampleChip, { borderColor: colors.border }]}
+                onPress={() => setInput(ex)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.exampleText, { color: colors.textSecondary }]}>{ex}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.welcomeActions}>
+            <TouchableOpacity
+              style={[styles.welcomeBtn, { borderColor: colors.border }]}
+              onPress={() => navigation.navigate('BarcodeScanner')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="barcode-outline" size={16} color={colors.textSecondary} />
+              <Text style={[styles.welcomeBtnText, { color: colors.textSecondary }]}>{t('add_meal_barcode')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.welcomeBtn, { borderColor: colors.border }]}
+              onPress={() => navigation.navigate('AddCustomFood', {})}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
+              <Text style={[styles.welcomeBtnText, { color: colors.textSecondary }]}>{t('add_meal_manual')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {sections.map((section) => (
+          <View key={section.title} style={{ marginTop: SPACING.md }}>
+            <Text style={[styles.sectionHeader, { color: colors.text }]}>{section.title}</Text>
+            {section.data.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.foodCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={() => navigation.navigate('ConfirmMeal', { food: item })}
+                activeOpacity={0.7}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                  <Text style={[styles.foodKcal, { color: colors.textSecondary }]}>{item.caloriesPer100g} {t('add_meal_per100g')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.border} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderItem = ({ item }: { item: ChatMessage }) => {
+    if (item.type === 'browse') return renderBrowse();
+    if (item.type === 'user') return renderUser(item);
+    if (item.type === 'ai') return renderAI(item);
+    if (item.type === 'error') return renderError(item);
+    return null;
+  };
+
+  // Counter color: green → yellow → red
+  const counterColor = remaining > 5 ? colors.primary
+    : remaining > 2 ? '#FF9800' : colors.error;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Search bar */}
-      <View style={styles.searchRow}>
-        <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} />
-          <TextInput
-            style={[styles.input, { color: colors.text }]}
-            placeholder={t('add_meal_search_placeholder')}
-            placeholderTextColor={colors.textSecondary}
-            value={query}
-            onChangeText={setQuery}
-            returnKeyType="search"
-            autoFocus
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setSearched(false); }}>
-              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <FlatList
+        ref={listRef}
+        data={messages}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+      />
 
-      {/* Quick actions */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => navigation.navigate('BarcodeScanner')}
-        >
-          <Ionicons name="barcode-outline" size={22} color={colors.primary} />
-          <Text style={[styles.actionText, { color: colors.primary }]}>{t('add_meal_barcode')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => navigation.navigate('AddCustomFood', {})}
-        >
-          <Ionicons name="create-outline" size={22} color={colors.primary} />
-          <Text style={[styles.actionText, { color: colors.primary }]}>{t('add_meal_manual')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      {isSearching ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.searchingText, { color: colors.textSecondary }]}>{t('add_meal_searching')}</Text>
+      {isThinking && (
+        <View style={styles.thinkingRow}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.thinkingText, { color: colors.textSecondary }]}>{t('ai_thinking')}</Text>
         </View>
-      ) : showBrowse ? (
-        sections.length > 0 ? (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            renderSectionHeader={({ section: { title } }) => (
-              <Text style={[styles.sectionHeader, { color: colors.text }]}>{title}</Text>
-            )}
-            renderItem={({ item }) => renderFoodCard(item)}
-          />
-        ) : (
-          <View style={styles.centered}>
-            <Ionicons name="fast-food-outline" size={48} color={colors.border} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('add_meal_enter_name')}</Text>
+      )}
+
+      {/* Input bar + counter */}
+      <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
+        <View style={styles.inputRow}>
+          <View style={[styles.inputWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderColor: colors.border }]}>
+            <TextInput
+              style={[styles.textInput, { color: colors.text }]}
+              placeholder={t('ai_chat_placeholder')}
+              placeholderTextColor={colors.textSecondary}
+              value={input}
+              onChangeText={setInput}
+              multiline
+              maxLength={300}
+              editable={!isThinking}
+              onSubmitEditing={handleSend}
+              blurOnSubmit
+              returnKeyType="send"
+            />
           </View>
-        )
-      ) : results.length > 0 ? (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => renderFoodCard(item)}
-        />
-      ) : searched && !isSearching ? (
-        <View style={styles.centered}>
-          <Ionicons name="search-outline" size={48} color={colors.border} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('add_meal_not_found')}</Text>
-          <Text style={[styles.emptyHint, { color: colors.border }]}>{t('add_meal_try_other')}</Text>
+          <TouchableOpacity
+            style={[styles.sendBtn, { backgroundColor: input.trim() && !isThinking && remaining > 0 ? colors.primary : colors.border }]}
+            onPress={handleSend}
+            disabled={!input.trim() || isThinking || remaining <= 0}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-up" size={18} color="#fff" />
+          </TouchableOpacity>
         </View>
-      ) : null}
-    </View>
+        <Text style={[styles.counterText, { color: counterColor }]}>
+          {remaining}/{DAILY_LIMIT} {t('ai_requests_left')}
+        </Text>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  actionsRow: { flexDirection: 'row', paddingHorizontal: SPACING.md, gap: SPACING.sm, marginBottom: SPACING.sm },
-  actionBtn: {
+  list: { padding: SPACING.md, paddingBottom: SPACING.sm },
+
+  // Browse
+  browseWrap: { gap: SPACING.xs },
+  welcomeCard: {
+    borderRadius: 16, borderWidth: 1, padding: SPACING.lg, alignItems: 'center',
+  },
+  welcomeTitle: { fontSize: FONT_SIZE.md, fontWeight: '700', marginTop: SPACING.sm, textAlign: 'center' },
+  welcomeDesc: { fontSize: FONT_SIZE.xs, marginTop: 4, textAlign: 'center', lineHeight: 18 },
+  examplesWrap: { width: '100%', marginTop: SPACING.md, gap: 6 },
+  exampleChip: {
+    paddingVertical: 8, paddingHorizontal: SPACING.sm, borderRadius: 10, borderWidth: 1,
+  },
+  exampleText: { fontSize: FONT_SIZE.xs },
+  welcomeActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md, width: '100%' },
+  welcomeBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: SPACING.xs, borderRadius: 14, borderWidth: 1, paddingVertical: 10,
+    gap: 4, paddingVertical: 8, borderRadius: 10, borderWidth: 1,
   },
-  actionText: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
-  searchRow: { flexDirection: 'row', padding: SPACING.md, gap: SPACING.sm },
-  inputWrapper: {
-    flex: 1, flexDirection: 'row', alignItems: 'center',
-    borderRadius: 14, borderWidth: 1, paddingHorizontal: SPACING.sm, gap: SPACING.xs,
-  },
-  input: { flex: 1, fontSize: FONT_SIZE.md, paddingVertical: 10 },
-  list: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.xl },
-  sectionHeader: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginTop: SPACING.md, marginBottom: SPACING.sm },
+  welcomeBtnText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
+  sectionHeader: { fontSize: FONT_SIZE.xs, fontWeight: '700', marginBottom: 4, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   foodCard: {
-    flexDirection: 'row', alignItems: 'center', borderRadius: 14,
-    padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 10, borderWidth: 1, padding: SPACING.sm, marginBottom: 4,
   },
-  foodInfo: { flex: 1, marginRight: SPACING.sm },
-  foodName: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
-  foodKcal: { fontSize: FONT_SIZE.xs, marginTop: 2 },
-  foodMacros: { flexDirection: 'row', gap: SPACING.xs, marginRight: SPACING.sm },
-  macroChip: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
-  searchingText: { fontSize: FONT_SIZE.md, marginTop: SPACING.sm },
-  emptyText: { fontSize: FONT_SIZE.md, marginTop: SPACING.sm },
-  emptyHint: { fontSize: FONT_SIZE.sm, marginTop: SPACING.xs },
+  foodName: { fontSize: FONT_SIZE.sm, fontWeight: '500' },
+  foodKcal: { fontSize: FONT_SIZE.xs, marginTop: 1 },
+
+  // User bubble
+  userBubble: {
+    alignSelf: 'flex-end', maxWidth: '80%',
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderRadius: 16, borderBottomRightRadius: 4, marginVertical: 4,
+  },
+  userText: { fontSize: FONT_SIZE.sm, lineHeight: 20 },
+
+  // Error
+  errorBubble: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+    borderRadius: 12, padding: SPACING.sm, marginVertical: 4,
+  },
+  errorText: { flex: 1, fontSize: FONT_SIZE.xs },
+
+  // AI card — clean
+  aiCard: {
+    borderRadius: 16, borderWidth: 1, padding: SPACING.md, marginVertical: 4,
+  },
+  aiName: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  kcalRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4 },
+  kcalValue: { fontSize: 32, fontWeight: '800', letterSpacing: -1 },
+  kcalLabel: { fontSize: FONT_SIZE.sm },
+
+  gramsRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 8, paddingHorizontal: SPACING.sm, paddingVertical: 6, marginTop: SPACING.sm,
+  },
+  gramsInput: { fontSize: FONT_SIZE.md, fontWeight: '600', minWidth: 40, padding: 0 },
+  gramsUnit: { fontSize: FONT_SIZE.sm },
+
+  macrosRow: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: 6, marginTop: SPACING.sm,
+  },
+  macroItem: { fontSize: FONT_SIZE.xs },
+  macroDot: { fontSize: FONT_SIZE.xs },
+
+  benefitsText: { fontSize: FONT_SIZE.xs, lineHeight: 16, marginTop: SPACING.sm },
+
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 4, paddingVertical: 10, borderRadius: 10, marginTop: SPACING.sm,
+  },
+  addBtnText: { color: '#fff', fontSize: FONT_SIZE.sm, fontWeight: '600' },
+
+  // Added state
+  addedCard: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+    borderRadius: 12, padding: SPACING.sm, marginVertical: 4,
+  },
+  addedText: { fontSize: FONT_SIZE.sm, fontWeight: '500' },
+
+  // Thinking
+  thinkingRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+    paddingHorizontal: SPACING.md, paddingVertical: 4,
+  },
+  thinkingText: { fontSize: FONT_SIZE.xs },
+
+  // Input bar
+  inputBar: {
+    paddingHorizontal: SPACING.sm, paddingTop: SPACING.xs, borderTopWidth: 1,
+  },
+  inputRow: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.xs,
+  },
+  inputWrap: {
+    flex: 1, borderRadius: 20, borderWidth: 1, paddingHorizontal: SPACING.md,
+    minHeight: 40, maxHeight: 100, justifyContent: 'center',
+  },
+  textInput: {
+    fontSize: FONT_SIZE.sm,
+    paddingTop: Platform.OS === 'ios' ? 10 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+  },
+  sendBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  counterText: {
+    fontSize: 10, fontWeight: '600', textAlign: 'center',
+    marginTop: 4,
+  },
 });

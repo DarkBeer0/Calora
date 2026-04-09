@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ interface CalorieSummaryCardProps {
   target: number;
 }
 
-export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSummaryCardProps) {
+function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardProps) {
   const { colors } = useTheme();
   const { t } = useI18n();
 
@@ -44,7 +44,7 @@ export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSum
   });
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="summary" accessibilityLabel={`${t('dash_eaten')} ${eaten} ${t('kcal')}, ${t('dash_burned')} ${burned}, ${t('dash_remaining')} ${remaining}`}>
       <View style={styles.row}>
         {/* Left: eaten */}
         <View style={styles.stat}>
@@ -101,6 +101,9 @@ export default function CalorieSummaryCard({ eaten, burned, target }: CalorieSum
     </View>
   );
 }
+
+const CalorieSummaryCard = memo(CalorieSummaryCardInner);
+export default CalorieSummaryCard;
 
 const styles = StyleSheet.create({
   card: {

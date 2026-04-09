@@ -37,14 +37,16 @@ const MEAL_I18N: Record<string, string> = {
 export default function ConfirmMealScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { food, editMeal } = route.params;
+  const { food, editMeal, initialGrams } = route.params;
   const { addMeal, updateMeal } = useMeals();
   const { addRecent, toggleFavorite, isFavorite } = useFoods();
   const { colors } = useTheme();
   const { t } = useI18n();
 
   const isEditing = !!editMeal;
-  const [grams, setGrams] = useState(isEditing ? String(editMeal.grams) : '100');
+  const [grams, setGrams] = useState(
+    isEditing ? String(editMeal.grams) : initialGrams ? String(Math.round(initialGrams)) : '100'
+  );
   const [mealType, setMealType] = useState<typeof MEAL_TYPE_KEYS[number]>(
     isEditing ? editMeal.mealType : 'lunch'
   );

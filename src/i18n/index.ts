@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ru, type TranslationKey } from './ru';
 import { en } from './en';
 import { pl } from './pl';
+import { setSearchLocale } from '../services/openfoodfacts';
 
 export type Language = 'ru' | 'en' | 'pl';
 
@@ -39,12 +40,16 @@ export function useI18nProvider() {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((val) => {
-      if (val === 'ru' || val === 'en' || val === 'pl') setLangState(val);
+      if (val === 'ru' || val === 'en' || val === 'pl') {
+        setLangState(val);
+        setSearchLocale(val);
+      }
     });
   }, []);
 
   const setLang = useCallback((l: Language) => {
     setLangState(l);
+    setSearchLocale(l);
     AsyncStorage.setItem(STORAGE_KEY, l);
   }, []);
 

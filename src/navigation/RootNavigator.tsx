@@ -22,7 +22,7 @@ import AddRecipeScreen from '../screens/AddRecipeScreen';
 export type RootStackParamList = {
   Tabs: undefined;
   AddMeal: undefined;
-  ConfirmMeal: { food: FoodItem; editMeal?: import('../types').MealEntry };
+  ConfirmMeal: { food: FoodItem; editMeal?: import('../types').MealEntry; initialGrams?: number };
   AddExercise: undefined;
   BarcodeScanner: undefined;
   AddCustomFood: { barcode?: string } | undefined;
