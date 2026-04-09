@@ -4,15 +4,16 @@ import {
   FlatList, ActivityIndicator, Alert, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
 import { useDebounce } from '../hooks/useDebounce';
-import { useRecipes, computeRecipeNutrition } from '../hooks/useRecipes';
+import { useRecipes, computeRecipeNutrition, computeRecipeTotalWeight } from '../hooks/useRecipes';
 import { searchProducts } from '../services/openfoodfacts';
+import { analyzeFoodText, aiAnalysisToFoodItem, hasAIKey } from '../services/aiNutrition';
 import type { FoodItem, RecipeIngredient, Recipe } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -22,7 +23,7 @@ export default function AddRecipeScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const { colors, isDark } = useTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { addRecipe, updateRecipe, deleteRecipe } = useRecipes();
 
   const editRecipe: Recipe | undefined = route.params?.editRecipe;
@@ -31,8 +32,12 @@ export default function AddRecipeScreen() {
   const [servings, setServings] = useState(String(editRecipe?.servings ?? 1));
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>(editRecipe?.ingredients ?? []);
 
-  // Ingredient search state
-  const [searchMode, setSearchMode] = useState(false);
+  // Add ingredient mode
+  const [addMode, setAddMode] = useState<'none' | 'ai' | 'search'>('none');
+  const [aiText, setAiText] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Search state
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -42,7 +47,7 @@ export default function AddRecipeScreen() {
   const debouncedQuery = useDebounce(query.trim(), 500);
 
   useEffect(() => {
-    if (!debouncedQuery) { setResults([]); return; }
+    if (addMode !== 'search' || !debouncedQuery) { setResults([]); return; }
     let cancelled = false;
     setIsSearching(true);
     searchProducts(debouncedQuery)
@@ -50,18 +55,54 @@ export default function AddRecipeScreen() {
       .catch(() => { if (!cancelled) setResults([]); })
       .finally(() => { if (!cancelled) setIsSearching(false); });
     return () => { cancelled = true; };
-  }, [debouncedQuery]);
+  }, [debouncedQuery, addMode]);
 
-  const handleAddIngredient = () => {
+  const resetAddMode = () => {
+    setAddMode('none');
+    setAiText('');
+    setQuery('');
+    setResults([]);
+    setSelectedFood(null);
+    setGramsInput('100');
+  };
+
+  // AI ingredient analysis
+  const handleAIAdd = async () => {
+    const text = aiText.trim();
+    if (!text || isAnalyzing) return;
+    if (!hasAIKey()) {
+      Alert.alert(t('error'), t('ai_no_key'));
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const analysis = await analyzeFoodText(text, lang);
+      const food = aiAnalysisToFoodItem(analysis);
+      const grams = Math.round(analysis.totalGrams);
+
+      setIngredients((prev) => [...prev, {
+        foodItem: food,
+        grams,
+      }]);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      resetAddMode();
+    } catch (e: any) {
+      Alert.alert(t('error'), String(e?.message || e));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Manual search add
+  const handleSearchAdd = () => {
     if (!selectedFood) return;
     const grams = parseFloat(gramsInput.replace(',', '.')) || 100;
     setIngredients((prev) => [...prev, { foodItem: selectedFood, grams }]);
-    setSelectedFood(null);
-    setQuery('');
-    setResults([]);
-    setGramsInput('100');
-    setSearchMode(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetAddMode();
   };
 
   const handleRemoveIngredient = (index: number) => {
@@ -69,6 +110,7 @@ export default function AddRecipeScreen() {
   };
 
   const nutrition = computeRecipeNutrition(ingredients);
+  const totalWeight = computeRecipeTotalWeight(ingredients);
   const servingsNum = parseInt(servings, 10) || 1;
 
   const handleSave = () => {
@@ -115,12 +157,12 @@ export default function AddRecipeScreen() {
 
   const r1 = (v: number) => Math.round(v * 10) / 10;
 
-  // Ingredient search modal
-  if (searchMode) {
+  // ---- Search mode (full screen) ----
+  if (addMode === 'search') {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.searchRow}>
-          <TouchableOpacity onPress={() => { setSearchMode(false); setSelectedFood(null); setQuery(''); }}>
+          <TouchableOpacity onPress={resetAddMode}>
             <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -141,7 +183,6 @@ export default function AddRecipeScreen() {
           </View>
         </View>
 
-        {/* If food selected, show grams input */}
         {selectedFood ? (
           <View style={[styles.gramsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.selectedName, { color: colors.text }]} numberOfLines={2}>{selectedFood.name}</Text>
@@ -156,7 +197,7 @@ export default function AddRecipeScreen() {
                 autoFocus
               />
               <Text style={[styles.gramsLabel, { color: colors.textSecondary }]}>g</Text>
-              <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={handleAddIngredient}>
+              <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={handleSearchAdd}>
                 <Ionicons name="add" size={22} color="#fff" />
                 <Text style={styles.addBtnText}>{t('add')}</Text>
               </TouchableOpacity>
@@ -189,7 +230,7 @@ export default function AddRecipeScreen() {
     );
   }
 
-  // Main recipe builder view
+  // ---- Main recipe builder ----
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -235,18 +276,69 @@ export default function AddRecipeScreen() {
           </View>
         </View>
 
-        {/* Ingredients list */}
+        {/* Ingredients header */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('recipe_ingredients')}</Text>
-          <TouchableOpacity
-            style={[styles.addIngredientBtn, { backgroundColor: colors.primary }]}
-            onPress={() => setSearchMode(true)}
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addIngredientText}>{t('recipe_add_ingredient')}</Text>
-          </TouchableOpacity>
         </View>
 
+        {/* AI ingredient input */}
+        {addMode === 'ai' ? (
+          <View style={[styles.aiInputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.aiInputRow}>
+              <TextInput
+                style={[styles.aiInput, { color: colors.text }]}
+                placeholder={t('recipe_ai_placeholder')}
+                placeholderTextColor={colors.textSecondary}
+                value={aiText}
+                onChangeText={setAiText}
+                autoFocus
+                multiline
+                maxLength={200}
+                onSubmitEditing={handleAIAdd}
+                blurOnSubmit
+                returnKeyType="send"
+              />
+            </View>
+            <View style={styles.aiActions}>
+              <TouchableOpacity onPress={resetAddMode} style={styles.aiCancelBtn}>
+                <Text style={[styles.aiCancelText, { color: colors.textSecondary }]}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.aiSendBtn, { backgroundColor: aiText.trim() && !isAnalyzing ? colors.primary : colors.border }]}
+                onPress={handleAIAdd}
+                disabled={!aiText.trim() || isAnalyzing}
+              >
+                {isAnalyzing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="sparkles" size={18} color="#fff" />
+                )}
+                <Text style={styles.aiSendText}>
+                  {isAnalyzing ? t('recipe_analyzing') : t('add')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : addMode === 'none' ? (
+          <View style={styles.addBtnsRow}>
+            <TouchableOpacity
+              style={[styles.addIngredientBtn, { backgroundColor: colors.primary }]}
+              onPress={() => setAddMode('ai')}
+            >
+              <Ionicons name="sparkles" size={16} color="#fff" />
+              <Text style={styles.addIngredientText}>{t('recipe_ai_add')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.addSearchBtn, { borderColor: colors.border }]}
+              onPress={() => setAddMode('search')}
+            >
+              <Ionicons name="search" size={16} color={colors.textSecondary} />
+              <Text style={[styles.addSearchText, { color: colors.textSecondary }]}>{t('recipe_or_search')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {/* Ingredients list */}
         {ingredients.length === 0 ? (
           <View style={[styles.emptyCard, { borderColor: colors.border }]}>
             <Ionicons name="list-outline" size={32} color={colors.border} />
@@ -261,7 +353,7 @@ export default function AddRecipeScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.ingredientName, { color: colors.text }]} numberOfLines={1}>{ing.foodItem.name}</Text>
                   <Text style={[styles.ingredientDetail, { color: colors.textSecondary }]}>
-                    {ing.grams}g — {kcal} kcal
+                    {ing.quantity ? `${ing.quantity} ${ing.unit || t('recipe_pcs')} · ` : ''}{ing.grams}g — {kcal} kcal
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => handleRemoveIngredient(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -276,6 +368,9 @@ export default function AddRecipeScreen() {
         {ingredients.length > 0 && (
           <View style={[styles.nutritionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.nutritionTitle, { color: colors.text }]}>{t('recipe_per_serving')}</Text>
+            <Text style={[styles.totalWeightText, { color: colors.textSecondary }]}>
+              {t('recipe_total_weight')}: {Math.round(totalWeight)}g · {Math.round(totalWeight / servingsNum)}g/{t('recipe_servings').toLowerCase()}
+            </Text>
             <View style={styles.nutritionRow}>
               <NutriBadge label="kcal" value={r1(nutrition.totalCalories / servingsNum)} color={colors.calories} sub={colors.textSecondary} />
               <NutriBadge label="P" value={r1(nutrition.totalProtein / servingsNum)} color={colors.protein} sub={colors.textSecondary} />
@@ -333,8 +428,23 @@ const styles = StyleSheet.create({
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
   sectionTitle: { fontSize: FONT_SIZE.md, fontWeight: '700' },
-  addIngredientBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: 10 },
-  addIngredientText: { color: '#fff', fontSize: FONT_SIZE.xs, fontWeight: '700' },
+
+  // Add ingredient buttons
+  addBtnsRow: { gap: SPACING.sm, marginBottom: SPACING.md },
+  addIngredientBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12 },
+  addIngredientText: { color: '#fff', fontSize: FONT_SIZE.sm, fontWeight: '700' },
+  addSearchBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  addSearchText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
+
+  // AI input
+  aiInputCard: { borderRadius: 14, borderWidth: 1, padding: SPACING.sm, marginBottom: SPACING.md },
+  aiInputRow: { minHeight: 44 },
+  aiInput: { fontSize: FONT_SIZE.sm, lineHeight: 20, padding: SPACING.xs },
+  aiActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: SPACING.xs },
+  aiCancelBtn: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm },
+  aiCancelText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
+  aiSendBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: SPACING.md, borderRadius: 10 },
+  aiSendText: { color: '#fff', fontSize: FONT_SIZE.xs, fontWeight: '700' },
 
   emptyCard: { alignItems: 'center', paddingVertical: SPACING.xl, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', marginBottom: SPACING.md },
   emptyText: { fontSize: FONT_SIZE.sm, marginTop: SPACING.sm },
@@ -347,7 +457,8 @@ const styles = StyleSheet.create({
   ingredientDetail: { fontSize: FONT_SIZE.xs, marginTop: 2 },
 
   nutritionCard: { borderRadius: 16, borderWidth: 1, padding: SPACING.md, marginTop: SPACING.md, marginBottom: SPACING.lg },
-  nutritionTitle: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginBottom: SPACING.sm, textAlign: 'center' },
+  nutritionTitle: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginBottom: 2, textAlign: 'center' },
+  totalWeightText: { fontSize: FONT_SIZE.xs, textAlign: 'center', marginBottom: SPACING.sm },
   nutritionRow: { flexDirection: 'row' },
 
   saveBtn: { paddingVertical: 14, borderRadius: 14, alignItems: 'center' },

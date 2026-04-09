@@ -242,6 +242,12 @@ export const ru = {
   recipe_empty_hint: 'Создайте свой первый рецепт',
   recipe_search_ingredient: 'Поиск ингредиента...',
   recipe_select: 'Рецепты',
+  recipe_ai_placeholder: 'Напр.: 2 огурца или 300г курицы',
+  recipe_ai_add: 'Описать ингредиент',
+  recipe_or_search: 'или поиск по базе',
+  recipe_analyzing: 'Анализирую...',
+  recipe_total_weight: 'Общий вес',
+  recipe_pcs: 'шт',
 
   // AI chat
   ai_chat_placeholder: 'Опишите блюдо: «варёные яйца 2 шт»',

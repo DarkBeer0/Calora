@@ -142,12 +142,12 @@ export default function RootNavigator() {
         }}
       >
         <Stack.Screen name="Tabs" component={TabNavigator} options={{ headerShown: false }} />
-        <Stack.Screen name="AddMeal" component={AddMealScreen} options={{ title: t('add_meal_title'), presentation: 'modal' }} />
-        <Stack.Screen name="ConfirmMeal" component={ConfirmMealScreen} options={{ title: t('confirm_title'), presentation: 'modal' }} />
-        <Stack.Screen name="AddExercise" component={AddExerciseScreen} options={{ title: t('exercise_title'), presentation: 'modal', headerTintColor: colors.error }} />
-        <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ title: t('scanner_title'), headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff' }} />
-        <Stack.Screen name="AddCustomFood" component={AddCustomFoodScreen} options={{ title: t('custom_food_title'), presentation: 'modal' }} />
-        <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ title: t('recipe_new'), presentation: 'modal' }} />
+        <Stack.Screen name="AddMeal" component={AddMealScreen} options={{ title: t('add_meal_title'), presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="ConfirmMeal" component={ConfirmMealScreen} options={{ title: t('confirm_title'), presentation: 'modal', animation: 'slide_from_right' }} />
+        <Stack.Screen name="AddExercise" component={AddExerciseScreen} options={{ title: t('exercise_title'), presentation: 'modal', animation: 'slide_from_bottom', headerTintColor: colors.error }} />
+        <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ title: t('scanner_title'), animation: 'fade', headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff' }} />
+        <Stack.Screen name="AddCustomFood" component={AddCustomFoodScreen} options={{ title: t('custom_food_title'), presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ title: t('recipe_new'), presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

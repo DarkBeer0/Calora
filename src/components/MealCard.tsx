@@ -12,10 +12,11 @@ interface MealCardProps {
   meal: MealEntry;
   onDelete?: (id: string) => void;
   onPress?: (meal: MealEntry) => void;
+  onLongPress?: (meal: MealEntry) => void;
 }
 
-function MealCardInner({ meal, onDelete, onPress }: MealCardProps) {
-  const { colors } = useTheme();
+function MealCardInner({ meal, onDelete, onPress, onLongPress }: MealCardProps) {
+  const { colors, isDark } = useTheme();
   const { t } = useI18n();
   const swipeableRef = useRef<Swipeable>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -50,20 +51,28 @@ function MealCardInner({ meal, onDelete, onPress }: MealCardProps) {
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.left}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{meal.foodItem.name}</Text>
-        <Text style={[styles.meta, { color: colors.textSecondary }]}>{meal.grams}{t('g')} · {meal.calories} {t('kcal')}</Text>
+        <Text style={[styles.grams, { color: colors.textSecondary }]}>{meal.grams}{t('g')}</Text>
+      </View>
+      <View style={styles.right}>
+        <Text style={[styles.calories, { color: colors.calories }]}>{meal.calories}</Text>
+        <Text style={[styles.kcalLabel, { color: colors.textSecondary }]}>{t('kcal')}</Text>
       </View>
       <View style={styles.macros}>
-        <Text style={[styles.macroText, { color: colors.protein }]}>P {meal.protein}</Text>
-        <Text style={[styles.macroText, { color: colors.fat }]}>F {meal.fat}</Text>
-        <Text style={[styles.macroText, { color: colors.carbs }]}>C {meal.carbs}</Text>
+        <Text style={[styles.macroText, { color: colors.textSecondary }]}>P {meal.protein}</Text>
+        <Text style={[styles.macroDot, { color: colors.border }]}>·</Text>
+        <Text style={[styles.macroText, { color: colors.textSecondary }]}>F {meal.fat}</Text>
+        <Text style={[styles.macroDot, { color: colors.border }]}>·</Text>
+        <Text style={[styles.macroText, { color: colors.textSecondary }]}>C {meal.carbs}</Text>
       </View>
     </View>
   );
 
-  const cardContent = onPress ? (
+  const cardContent = (onPress || onLongPress) ? (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={() => onPress(meal)}
+      onPress={onPress ? () => onPress(meal) : undefined}
+      onLongPress={onLongPress ? () => onLongPress(meal) : undefined}
+      delayLongPress={400}
       accessibilityRole="button"
       accessibilityLabel={`${meal.foodItem.name}, ${meal.calories} ${t('kcal')}`}
     >
@@ -95,6 +104,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     borderRadius: 14,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -108,17 +118,40 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
   },
-  meta: {
+  grams: {
     fontSize: FONT_SIZE.xs,
-    marginTop: 2,
+    marginTop: 1,
+  },
+  right: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+  },
+  calories: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  kcalLabel: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '500',
   },
   macros: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(128,128,128,0.15)',
+    gap: 6,
   },
   macroText: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  macroDot: {
+    fontSize: 11,
   },
   swipeAction: {
     justifyContent: 'center',

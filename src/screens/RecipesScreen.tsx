@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
-import { useRecipes, recipeToFoodItem } from '../hooks/useRecipes';
+import { useRecipes, recipeToFoodItem, recipeServingGrams } from '../hooks/useRecipes';
 import type { Recipe } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -22,8 +22,8 @@ export default function RecipesScreen() {
 
   const handleUseAsMeal = (recipe: Recipe) => {
     const food = recipeToFoodItem(recipe);
-    // grams=100 represents 1 serving
-    navigation.navigate('ConfirmMeal', { food });
+    const servingG = recipeServingGrams(recipe);
+    navigation.navigate('ConfirmMeal', { food, initialGrams: servingG });
   };
 
   const handleEdit = (recipe: Recipe) => {

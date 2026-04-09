@@ -24,22 +24,53 @@ export function computeRecipeNutrition(ingredients: RecipeIngredient[]) {
   return { totalCalories, totalProtein, totalFat, totalCarbs, totalFiber, totalSugars, totalSaturatedFat, totalSalt };
 }
 
-/** Convert a Recipe to a FoodItem (per 1 serving = 100g equivalent) */
+/** Total weight of all ingredients in grams */
+export function computeRecipeTotalWeight(ingredients: RecipeIngredient[]): number {
+  return ingredients.reduce((sum, ing) => sum + ing.grams, 0);
+}
+
+/** Convert a Recipe to a FoodItem with proper per-100g values based on total weight */
 export function recipeToFoodItem(recipe: Recipe): FoodItem {
-  const s = recipe.servings || 1;
+  const totalWeight = computeRecipeTotalWeight(recipe.ingredients);
+  // If no weight data, fall back to per-serving (legacy recipes)
+  if (totalWeight <= 0) {
+    const s = recipe.servings || 1;
+    return {
+      id: `recipe_${recipe.id}`,
+      name: recipe.name,
+      caloriesPer100g: Math.round(recipe.totalCalories / s),
+      proteinPer100g: Math.round((recipe.totalProtein / s) * 10) / 10,
+      fatPer100g: Math.round((recipe.totalFat / s) * 10) / 10,
+      carbsPer100g: Math.round((recipe.totalCarbs / s) * 10) / 10,
+      fiberPer100g: Math.round((recipe.totalFiber / s) * 10) / 10,
+      sugarsPer100g: Math.round((recipe.totalSugars / s) * 10) / 10,
+      saturatedFatPer100g: Math.round((recipe.totalSaturatedFat / s) * 10) / 10,
+      saltPer100g: Math.round((recipe.totalSalt / s) * 100) / 100,
+      source: 'custom',
+    };
+  }
+
+  const factor = 100 / totalWeight;
   return {
     id: `recipe_${recipe.id}`,
     name: recipe.name,
-    caloriesPer100g: recipe.totalCalories / s,
-    proteinPer100g: recipe.totalProtein / s,
-    fatPer100g: recipe.totalFat / s,
-    carbsPer100g: recipe.totalCarbs / s,
-    fiberPer100g: recipe.totalFiber / s,
-    sugarsPer100g: recipe.totalSugars / s,
-    saturatedFatPer100g: recipe.totalSaturatedFat / s,
-    saltPer100g: recipe.totalSalt / s,
+    caloriesPer100g: Math.round(recipe.totalCalories * factor),
+    proteinPer100g: Math.round(recipe.totalProtein * factor * 10) / 10,
+    fatPer100g: Math.round(recipe.totalFat * factor * 10) / 10,
+    carbsPer100g: Math.round(recipe.totalCarbs * factor * 10) / 10,
+    fiberPer100g: Math.round(recipe.totalFiber * factor * 10) / 10,
+    sugarsPer100g: Math.round(recipe.totalSugars * factor * 10) / 10,
+    saturatedFatPer100g: Math.round(recipe.totalSaturatedFat * factor * 10) / 10,
+    saltPer100g: Math.round(recipe.totalSalt * factor * 100) / 100,
     source: 'custom',
   };
+}
+
+/** Get grams for 1 serving of a recipe */
+export function recipeServingGrams(recipe: Recipe): number {
+  const totalWeight = computeRecipeTotalWeight(recipe.ingredients);
+  const s = recipe.servings || 1;
+  return totalWeight > 0 ? Math.round(totalWeight / s) : 100;
 }
 
 export function useRecipes() {

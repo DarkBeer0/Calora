@@ -19,6 +19,7 @@ import MiniRing from '../components/MiniRing';
 import MealCard from '../components/MealCard';
 import ExerciseCard from '../components/ExerciseCard';
 import WaterWidget from '../components/WaterWidget';
+import MealActionModal from '../components/MealActionModal';
 import SkeletonDashboard from '../components/SkeletonDashboard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import type { MealEntry } from '../types';
@@ -29,12 +30,6 @@ const handleEditMeal = (navigation: NativeStackNavigationProp<RootStackParamList
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const MEAL_I18N: Record<string, string> = {
-  breakfast: 'meal_breakfast',
-  lunch: 'meal_lunch',
-  dinner: 'meal_dinner',
-  snack: 'meal_snack',
-};
 
 export default function DashboardScreen() {
   const navigation = useNavigation<Nav>();
@@ -47,6 +42,7 @@ export default function DashboardScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [modalMeal, setModalMeal] = useState<MealEntry | null>(null);
   const fabAnim = useRef(new Animated.Value(0)).current;
 
   // Section fade-in animations
@@ -123,8 +119,6 @@ export default function DashboardScreen() {
 
   const target = calculateDailyTarget(profile);
   const { totalCalories, totalProtein, totalFat, totalCarbs, totalFiber, totalSugars, totalSaturatedFat, totalSalt } = todaySummary;
-  const mealGroups = groupByMealType(todayMeals);
-
   const dateLocale = lang === 'pl' ? 'pl-PL' : lang === 'en' ? 'en-US' : 'ru-RU';
 
   return (
@@ -163,7 +157,7 @@ export default function DashboardScreen() {
           <MicroRow label={t('dash_salt')} current={r1(totalSalt)} target={DAILY_MICRO_TARGETS.salt} color={colors.salt} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
         </Animated.View>
 
-        {/* Water */}
+        {/* Water - centered */}
         <WaterWidget
           todayTotal={waterTotal}
           goal={profile.waterGoal ?? 2000}
@@ -191,28 +185,43 @@ export default function DashboardScreen() {
           ))
         )}
 
-        {/* Meals */}
+        {/* Meals — flat list, no grouping */}
         <View style={[styles.sectionHeader, { marginTop: SPACING.lg }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_meals')}</Text>
         </View>
 
-        {mealGroups.length === 0 ? (
+        {todayMeals.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="restaurant-outline" size={40} color={colors.border} />
             <Text style={{ fontSize: FONT_SIZE.md, color: colors.textSecondary, marginTop: SPACING.sm }}>{t('dash_no_meals')}</Text>
             <Text style={{ fontSize: FONT_SIZE.sm, color: colors.border, marginTop: SPACING.xs }}>{t('dash_no_meals_hint')}</Text>
           </View>
         ) : (
-          mealGroups.map(({ type, meals }) => (
-            <View key={type} style={styles.mealGroup}>
-              <Text style={[styles.mealGroupTitle, { color: colors.text }]}>{t(MEAL_I18N[type] as any)}</Text>
-              {meals.map((meal) => <MealCard key={meal.id} meal={meal} onDelete={deleteMeal} onPress={(m) => handleEditMeal(navigation, m)} />)}
-            </View>
+          todayMeals.map((meal) => (
+            <MealCard
+              key={meal.id}
+              meal={meal}
+              onDelete={deleteMeal}
+              onPress={(m) => handleEditMeal(navigation, m)}
+              onLongPress={(m) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setModalMeal(m);
+              }}
+            />
           ))
         )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Meal action modal */}
+      <MealActionModal
+        visible={!!modalMeal}
+        meal={modalMeal}
+        onEdit={(m) => handleEditMeal(navigation, m)}
+        onDelete={deleteMeal}
+        onClose={() => setModalMeal(null)}
+      />
 
       {/* FAB Speed Dial */}
       {fabOpen && (
@@ -264,17 +273,6 @@ export default function DashboardScreen() {
 /* ---- Helpers ---- */
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
-
-function groupByMealType(meals: MealEntry[]) {
-  const order = ['breakfast', 'lunch', 'dinner', 'snack'];
-  const map = new Map<string, MealEntry[]>();
-  for (const meal of meals) {
-    const list = map.get(meal.mealType) ?? [];
-    list.push(meal);
-    map.set(meal.mealType, list);
-  }
-  return order.filter((t) => map.has(t)).map((t) => ({ type: t, meals: map.get(t)! }));
-}
 
 function MicroRow({ label, current, target, color, errorColor, textColor, subColor, good }: {
   label: string; current: number; target: number; color: string; errorColor: string; textColor: string; subColor: string; good?: boolean;
@@ -330,9 +328,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
     borderRadius: 16, padding: SPACING.md, borderWidth: 1, borderStyle: 'dashed',
   },
-
-  mealGroup: { marginBottom: SPACING.md },
-  mealGroupTitle: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginBottom: SPACING.xs },
 
   emptyState: { alignItems: 'center', paddingVertical: SPACING.lg },
 

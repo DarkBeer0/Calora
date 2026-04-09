@@ -22,9 +22,11 @@ import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
 import { useFoods } from '../hooks/useFoods';
 import { useMeals } from '../hooks/useMeals';
-import { useRecipes, recipeToFoodItem } from '../hooks/useRecipes';
+import { useRecipes, recipeToFoodItem, recipeServingGrams } from '../hooks/useRecipes';
 import { analyzeFoodText, aiAnalysisToFoodItem, hasAIKey, type AIFoodAnalysis } from '../services/aiNutrition';
-import { calculateNutrition } from '../utils/nutrition';
+import { calculateNutrition, calculateDailyTarget } from '../utils/nutrition';
+import { DAILY_MICRO_TARGETS } from '../constants/nutrition';
+import { useProfile } from '../hooks/useProfile';
 import type { FoodItem, MealEntry } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -35,7 +37,7 @@ const LIMIT_STORAGE_KEY = 'calora_ai_daily';
 
 type ChatMessage =
   | { id: string; type: 'user'; text: string }
-  | { id: string; type: 'ai'; food: FoodItem; analysis: AIFoodAnalysis; grams: number; added?: boolean }
+  | { id: string; type: 'ai'; food: FoodItem; analysis: AIFoodAnalysis; grams: number; added?: boolean; addedNutrition?: ReturnType<typeof calculateNutrition> }
   | { id: string; type: 'error'; text: string }
   | { id: string; type: 'browse' };
 
@@ -61,8 +63,9 @@ export default function AddMealScreen() {
   const { t, lang } = useI18n();
   const insets = useSafeAreaInsets();
   const { recentFoods, favoriteFoods, addRecent } = useFoods();
-  const { addMeal } = useMeals();
+  const { addMeal, todaySummary } = useMeals();
   const { recipes } = useRecipes();
+  const { profile } = useProfile();
 
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -153,7 +156,7 @@ export default function AddMealScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     setMessages((prev) => prev.map((m) =>
-      m.id === msg.id && m.type === 'ai' ? { ...m, added: true } : m
+      m.id === msg.id && m.type === 'ai' ? { ...m, added: true, addedNutrition: nutrition } : m
     ));
   }, [addMeal, addRecent]);
 
@@ -173,19 +176,63 @@ export default function AddMealScreen() {
   );
 
   const renderAI = (m: Extract<ChatMessage, { type: 'ai' }>) => {
-    const { food, analysis, grams, added } = m;
+    const { food, analysis, grams, added, addedNutrition } = m;
     const totalKcal = Math.round((food.caloriesPer100g * grams) / 100);
     const totalP = Math.round((food.proteinPer100g * grams) / 10) / 10;
     const totalF = Math.round((food.fatPer100g * grams) / 10) / 10;
     const totalC = Math.round((food.carbsPer100g * grams) / 10) / 10;
 
     if (added) {
+      const dailyTarget = calculateDailyTarget(profile);
+      const nut = addedNutrition || calculateNutrition(food, grams);
+      // Show summary of how this meal affected daily totals
+      const totalCals = todaySummary.totalCalories;
+      const calPct = dailyTarget.calories > 0 ? Math.min(totalCals / dailyTarget.calories, 1) : 0;
+      const isOverCal = totalCals > dailyTarget.calories;
+
+      const pPct = dailyTarget.protein > 0 ? Math.min(todaySummary.totalProtein / dailyTarget.protein, 1) : 0;
+      const fPct = dailyTarget.fat > 0 ? Math.min(todaySummary.totalFat / dailyTarget.fat, 1) : 0;
+      const cPct = dailyTarget.carbs > 0 ? Math.min(todaySummary.totalCarbs / dailyTarget.carbs, 1) : 0;
+
       return (
-        <View style={[styles.addedCard, { backgroundColor: isDark ? 'rgba(76,175,80,0.08)' : '#F1F8E9' }]}>
-          <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-          <Text style={[styles.addedText, { color: colors.primary }]}>
-            {food.name} · {totalKcal} {t('kcal')} {t('ai_added')}
-          </Text>
+        <View style={[styles.addedCard, { backgroundColor: isDark ? 'rgba(76,175,80,0.06)' : '#F1F8E9' }]}>
+          <View style={styles.addedHeader}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+            <Text style={[styles.addedText, { color: colors.primary }]}>
+              {food.name} · +{nut.calories} {t('kcal')}
+            </Text>
+          </View>
+          {/* Mini daily progress */}
+          <View style={styles.addedProgress}>
+            <View style={styles.addedBarRow}>
+              <Text style={[styles.addedBarLabel, { color: isOverCal ? colors.error : colors.textSecondary }]}>
+                {Math.round(totalCals)}/{dailyTarget.calories} {t('kcal')}
+              </Text>
+              <View style={[styles.addedBarBg, { backgroundColor: `${colors.calories}15` }]}>
+                <View style={[styles.addedBarFill, { width: `${calPct * 100}%`, backgroundColor: isOverCal ? colors.error : colors.calories }]} />
+              </View>
+            </View>
+            <View style={styles.addedMacroRow}>
+              <View style={styles.addedMiniBar}>
+                <Text style={[styles.addedMiniLabel, { color: colors.protein }]}>P</Text>
+                <View style={[styles.addedMiniBarBg, { backgroundColor: `${colors.protein}20` }]}>
+                  <View style={[styles.addedMiniBarFill, { width: `${pPct * 100}%`, backgroundColor: colors.protein }]} />
+                </View>
+              </View>
+              <View style={styles.addedMiniBar}>
+                <Text style={[styles.addedMiniLabel, { color: colors.fat }]}>F</Text>
+                <View style={[styles.addedMiniBarBg, { backgroundColor: `${colors.fat}20` }]}>
+                  <View style={[styles.addedMiniBarFill, { width: `${fPct * 100}%`, backgroundColor: colors.fat }]} />
+                </View>
+              </View>
+              <View style={styles.addedMiniBar}>
+                <Text style={[styles.addedMiniLabel, { color: colors.carbs }]}>C</Text>
+                <View style={[styles.addedMiniBarBg, { backgroundColor: `${colors.carbs}20` }]}>
+                  <View style={[styles.addedMiniBarFill, { width: `${cPct * 100}%`, backgroundColor: colors.carbs }]} />
+                </View>
+              </View>
+            </View>
+          </View>
         </View>
       );
     }
@@ -254,11 +301,11 @@ export default function AddMealScreen() {
   };
 
   const renderBrowse = () => {
-    const recipeFoods = recipes.map(recipeToFoodItem);
-    const sections: { title: string; data: FoodItem[] }[] = [];
+    const recipeFoods = recipes.map((r) => ({ food: recipeToFoodItem(r), servingGrams: recipeServingGrams(r) }));
+    const sections: { title: string; data: { food: FoodItem; servingGrams?: number }[] }[] = [];
     if (recipeFoods.length > 0) sections.push({ title: t('recipe_select'), data: recipeFoods.slice(0, 5) });
-    if (favoriteFoods.length > 0) sections.push({ title: t('favorite_foods'), data: favoriteFoods.slice(0, 5) });
-    if (recentFoods.length > 0) sections.push({ title: t('recent_foods'), data: recentFoods.slice(0, 5) });
+    if (favoriteFoods.length > 0) sections.push({ title: t('favorite_foods'), data: favoriteFoods.slice(0, 5).map((f) => ({ food: f })) });
+    if (recentFoods.length > 0) sections.push({ title: t('recent_foods'), data: recentFoods.slice(0, 5).map((f) => ({ food: f })) });
 
     return (
       <View style={styles.browseWrap}>
@@ -305,14 +352,14 @@ export default function AddMealScreen() {
             <Text style={[styles.sectionHeader, { color: colors.text }]}>{section.title}</Text>
             {section.data.map((item) => (
               <TouchableOpacity
-                key={item.id}
+                key={item.food.id}
                 style={[styles.foodCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => navigation.navigate('ConfirmMeal', { food: item })}
+                onPress={() => navigation.navigate('ConfirmMeal', { food: item.food, initialGrams: item.servingGrams })}
                 activeOpacity={0.7}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                  <Text style={[styles.foodKcal, { color: colors.textSecondary }]}>{item.caloriesPer100g} {t('add_meal_per100g')}</Text>
+                  <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>{item.food.name}</Text>
+                  <Text style={[styles.foodKcal, { color: colors.textSecondary }]}>{item.food.caloriesPer100g} {t('add_meal_per100g')}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.border} />
               </TouchableOpacity>
@@ -338,8 +385,8 @@ export default function AddMealScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
     >
       <FlatList
         ref={listRef}
@@ -471,10 +518,43 @@ const styles = StyleSheet.create({
 
   // Added state
   addedCard: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
     borderRadius: 12, padding: SPACING.sm, marginVertical: 4,
   },
+  addedHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+  },
   addedText: { fontSize: FONT_SIZE.sm, fontWeight: '500' },
+  addedProgress: {
+    marginTop: 8,
+    gap: 6,
+  },
+  addedBarRow: {
+    gap: 3,
+  },
+  addedBarLabel: {
+    fontSize: 10, fontWeight: '600',
+  },
+  addedBarBg: {
+    height: 5, borderRadius: 3, overflow: 'hidden',
+  },
+  addedBarFill: {
+    height: '100%', borderRadius: 3,
+  },
+  addedMacroRow: {
+    flexDirection: 'row', gap: SPACING.sm,
+  },
+  addedMiniBar: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  addedMiniLabel: {
+    fontSize: 10, fontWeight: '700', width: 10,
+  },
+  addedMiniBarBg: {
+    flex: 1, height: 4, borderRadius: 2, overflow: 'hidden',
+  },
+  addedMiniBarFill: {
+    height: '100%', borderRadius: 2,
+  },
 
   // Thinking
   thinkingRow: {

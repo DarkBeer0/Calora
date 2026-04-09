@@ -223,6 +223,12 @@ export const en: Record<TranslationKey, string> = {
   recipe_empty_hint: 'Create your first recipe',
   recipe_search_ingredient: 'Search ingredient...',
   recipe_select: 'Recipes',
+  recipe_ai_placeholder: 'E.g.: 2 cucumbers or 300g chicken',
+  recipe_ai_add: 'Describe ingredient',
+  recipe_or_search: 'or search database',
+  recipe_analyzing: 'Analyzing...',
+  recipe_total_weight: 'Total weight',
+  recipe_pcs: 'pcs',
 
   ai_chat_placeholder: 'Describe a meal: "2 boiled eggs"',
   ai_thinking: 'Analyzing...',

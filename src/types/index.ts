@@ -80,6 +80,10 @@ export interface WeightEntry {
 export interface RecipeIngredient {
   foodItem: FoodItem;
   grams: number;
+  /** Optional piece count (e.g., 2 cucumbers) — grams is the total estimated weight */
+  quantity?: number;
+  /** Display unit (e.g., "шт", "pcs") */
+  unit?: string;
 }
 
 export interface Recipe {

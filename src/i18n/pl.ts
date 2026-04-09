@@ -223,6 +223,12 @@ export const pl: Record<TranslationKey, string> = {
   recipe_empty_hint: 'Stwórz swój pierwszy przepis',
   recipe_search_ingredient: 'Szukaj składnika...',
   recipe_select: 'Przepisy',
+  recipe_ai_placeholder: 'Np.: 2 ogórki lub 300g kurczaka',
+  recipe_ai_add: 'Opisz składnik',
+  recipe_or_search: 'lub szukaj w bazie',
+  recipe_analyzing: 'Analizuję...',
+  recipe_total_weight: 'Łączna waga',
+  recipe_pcs: 'szt',
 
   ai_chat_placeholder: 'Opisz danie: "2 jajka na twardo"',
   ai_thinking: 'Analizuję...',

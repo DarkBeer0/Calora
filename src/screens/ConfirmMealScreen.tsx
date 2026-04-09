@@ -14,11 +14,13 @@ import type { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SPACING, FONT_SIZE } from '../constants/theme';
+import { DAILY_MICRO_TARGETS } from '../constants/nutrition';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
-import { calculateNutrition } from '../utils/nutrition';
+import { calculateNutrition, calculateDailyTarget } from '../utils/nutrition';
 import { useMeals } from '../hooks/useMeals';
 import { useFoods } from '../hooks/useFoods';
+import { useProfile } from '../hooks/useProfile';
 import MacroBar from '../components/MacroBar';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import type { MealEntry } from '../types';
@@ -26,20 +28,21 @@ import type { MealEntry } from '../types';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ConfirmMeal'>;
 
-const MEAL_TYPE_KEYS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-const MEAL_I18N: Record<string, string> = {
-  breakfast: 'meal_breakfast',
-  lunch: 'meal_lunch',
-  dinner: 'meal_dinner',
-  snack: 'meal_snack',
-};
+function getMealTypeByTime(): 'breakfast' | 'lunch' | 'dinner' | 'snack' {
+  const h = new Date().getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 19) return 'dinner';
+  return 'snack';
+}
 
 export default function ConfirmMealScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const { food, editMeal, initialGrams } = route.params;
-  const { addMeal, updateMeal } = useMeals();
+  const { addMeal, updateMeal, todaySummary } = useMeals();
   const { addRecent, toggleFavorite, isFavorite } = useFoods();
+  const { profile } = useProfile();
   const { colors } = useTheme();
   const { t } = useI18n();
 
@@ -47,13 +50,26 @@ export default function ConfirmMealScreen() {
   const [grams, setGrams] = useState(
     isEditing ? String(editMeal.grams) : initialGrams ? String(Math.round(initialGrams)) : '100'
   );
-  const [mealType, setMealType] = useState<typeof MEAL_TYPE_KEYS[number]>(
-    isEditing ? editMeal.mealType : 'lunch'
-  );
+  const mealType = isEditing ? editMeal.mealType : getMealTypeByTime();
 
   const gramsNum = parseFloat(grams) || 0;
   const nutrition = calculateNutrition(food, gramsNum);
   const foodIsFavorite = isFavorite(food.id);
+
+  // Daily targets
+  const target = calculateDailyTarget(profile);
+
+  // Already consumed today (subtract the editing meal if in edit mode)
+  const consumed = {
+    calories: todaySummary.totalCalories - (isEditing ? editMeal.calories : 0),
+    protein: todaySummary.totalProtein - (isEditing ? editMeal.protein : 0),
+    fat: todaySummary.totalFat - (isEditing ? editMeal.fat : 0),
+    carbs: todaySummary.totalCarbs - (isEditing ? editMeal.carbs : 0),
+    fiber: todaySummary.totalFiber - (isEditing ? (editMeal.fiber ?? 0) : 0),
+    sugars: todaySummary.totalSugars - (isEditing ? (editMeal.sugars ?? 0) : 0),
+    saturatedFat: todaySummary.totalSaturatedFat - (isEditing ? (editMeal.saturatedFat ?? 0) : 0),
+    salt: todaySummary.totalSalt - (isEditing ? (editMeal.salt ?? 0) : 0),
+  };
 
   const handleConfirm = async () => {
     if (gramsNum <= 0) {
@@ -94,6 +110,12 @@ export default function ConfirmMealScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     toggleFavorite(food);
   };
+
+  // Calorie summary
+  const totalCaloriesAfter = consumed.calories + nutrition.calories;
+  const calorieOver = totalCaloriesAfter > target.calories;
+  const calorieProgress = target.calories > 0 ? Math.min(totalCaloriesAfter / target.calories, 1) : 0;
+  const consumedCaloriePct = target.calories > 0 ? Math.min(consumed.calories / target.calories, 1) : 0;
 
   return (
     <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.container}>
@@ -141,36 +163,34 @@ export default function ConfirmMealScreen() {
         ))}
       </View>
 
-      {/* Nutrition preview */}
+      {/* Nutrition preview — relative to daily targets */}
       <View style={[styles.nutritionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.nutritionTitle, { color: colors.text }]}>
-          {t('confirm_total')} <Text style={{ color: colors.calories, fontWeight: '700' }}>{nutrition.calories} {t('kcal')}</Text>
+        {/* Inline calorie row */}
+        <View style={styles.calorieInlineRow}>
+          <Text style={[styles.calorieInlineLabel, { color: colors.text }]}>{t('confirm_total')}</Text>
+          <Text style={[styles.calorieInlineValue, { color: calorieOver ? colors.error : colors.calories }]}>
+            +{nutrition.calories} {t('kcal')}
+          </Text>
+        </View>
+        <Text style={[styles.calorieInlineSub, { color: colors.textSecondary }]}>
+          {Math.round(totalCaloriesAfter)} / {target.calories} {t('kcal')}
         </Text>
-        <MacroBar label={t('dash_protein')} current={nutrition.protein} target={nutrition.protein} color={colors.protein} />
-        <MacroBar label={t('dash_fat')} current={nutrition.fat} target={nutrition.fat} color={colors.fat} />
-        <MacroBar label={t('dash_carbs')} current={nutrition.carbs} target={nutrition.carbs} color={colors.carbs} />
+        <View style={[styles.calorieBarBg, { backgroundColor: `${colors.calories}20` }]}>
+          <View style={[styles.calorieBarConsumed, { width: `${consumedCaloriePct * 100}%`, backgroundColor: colors.calories, opacity: 0.25 }]} />
+          <View style={[styles.calorieBarNew, { left: `${consumedCaloriePct * 100}%`, width: `${(calorieProgress - consumedCaloriePct) * 100}%`, backgroundColor: calorieOver ? colors.error : colors.calories }]} />
+        </View>
+
+        <View style={[styles.microDivider, { backgroundColor: colors.border, marginTop: SPACING.md }]} />
+
+        <MacroBar label={t('dash_protein')} current={nutrition.protein} target={target.protein} color={colors.protein} alreadyConsumed={consumed.protein} />
+        <MacroBar label={t('dash_fat')} current={nutrition.fat} target={target.fat} color={colors.fat} alreadyConsumed={consumed.fat} />
+        <MacroBar label={t('dash_carbs')} current={nutrition.carbs} target={target.carbs} color={colors.carbs} alreadyConsumed={consumed.carbs} />
 
         <View style={[styles.microDivider, { backgroundColor: colors.border }]} />
-        <MacroBar label={t('dash_fiber')} current={nutrition.fiber} target={nutrition.fiber} color={colors.fiber} />
-        <MacroBar label={t('dash_sugars')} current={nutrition.sugars} target={nutrition.sugars} color={colors.sugars} />
-        <MacroBar label={t('dash_sat_fat')} current={nutrition.saturatedFat} target={nutrition.saturatedFat} color={colors.saturatedFat} />
-        <MacroBar label={t('dash_salt')} current={nutrition.salt} target={nutrition.salt} color={colors.salt} />
-      </View>
-
-      {/* Meal type selector */}
-      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('confirm_meal_type')}</Text>
-      <View style={styles.mealTypeRow}>
-        {MEAL_TYPE_KEYS.map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.mealTypeBtn, { backgroundColor: colors.surface, borderColor: colors.border }, mealType === key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-            onPress={() => setMealType(key)}
-          >
-            <Text style={[styles.mealTypeText, { color: colors.text }, mealType === key && styles.mealTypeTextActive]}>
-              {t(MEAL_I18N[key] as any)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <MacroBar label={t('dash_fiber')} current={nutrition.fiber} target={DAILY_MICRO_TARGETS.fiber} color={colors.fiber} alreadyConsumed={consumed.fiber} />
+        <MacroBar label={t('dash_sugars')} current={nutrition.sugars} target={DAILY_MICRO_TARGETS.sugars} color={colors.sugars} alreadyConsumed={consumed.sugars} />
+        <MacroBar label={t('dash_sat_fat')} current={nutrition.saturatedFat} target={DAILY_MICRO_TARGETS.saturatedFat} color={colors.saturatedFat} alreadyConsumed={consumed.saturatedFat} />
+        <MacroBar label={t('dash_salt')} current={nutrition.salt} target={DAILY_MICRO_TARGETS.salt} color={colors.salt} alreadyConsumed={consumed.salt} />
       </View>
 
       {/* Confirm button */}
@@ -202,16 +222,28 @@ const styles = StyleSheet.create({
   },
   quickBtnText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
   quickBtnTextActive: { color: '#fff', fontWeight: '700' },
-  nutritionCard: { borderRadius: 20, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1 },
-  nutritionTitle: { fontSize: FONT_SIZE.md, marginBottom: SPACING.md, textAlign: 'center' },
-  microDivider: { height: 1, marginVertical: SPACING.sm },
-  mealTypeRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg, flexWrap: 'wrap' },
-  mealTypeBtn: {
-    flex: 1, minWidth: '40%', paddingVertical: SPACING.sm,
-    borderRadius: 12, borderWidth: 1, alignItems: 'center',
+
+  // Calorie inline
+  calorieInlineRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    marginBottom: 2,
   },
-  mealTypeText: { fontSize: FONT_SIZE.sm },
-  mealTypeTextActive: { color: '#fff', fontWeight: '600' },
+  calorieInlineLabel: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  calorieInlineValue: { fontSize: FONT_SIZE.lg, fontWeight: '800' },
+  calorieInlineSub: { fontSize: FONT_SIZE.xs, marginBottom: 4, textAlign: 'right' },
+  calorieBarBg: {
+    width: '100%', height: 6, borderRadius: 3,
+    overflow: 'hidden',
+  },
+  calorieBarConsumed: {
+    position: 'absolute', left: 0, top: 0, height: '100%', borderRadius: 3,
+  },
+  calorieBarNew: {
+    position: 'absolute', top: 0, height: '100%', borderRadius: 3,
+  },
+
+  nutritionCard: { borderRadius: 20, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1 },
+  microDivider: { height: 1, marginVertical: SPACING.sm },
   confirmBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
   confirmBtnText: { color: '#fff', fontSize: FONT_SIZE.lg, fontWeight: '700' },
 });
