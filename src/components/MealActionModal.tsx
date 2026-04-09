@@ -16,7 +16,7 @@ interface MealActionModalProps {
 }
 
 export default function MealActionModal({ visible, meal, onEdit, onDelete, onClose }: MealActionModalProps) {
-  const { colors, isDark } = useTheme();
+  const { colors, tint } = useTheme();
   const { t } = useI18n();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
@@ -45,7 +45,7 @@ export default function MealActionModal({ visible, meal, onEdit, onDelete, onClo
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
       <Pressable style={styles.overlay} onPress={handleClose}>
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', opacity: overlayAnim }]} />
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay, opacity: overlayAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5] }) }]} />
       </Pressable>
 
       <View style={styles.center} pointerEvents="box-none">
@@ -59,7 +59,7 @@ export default function MealActionModal({ visible, meal, onEdit, onDelete, onClo
         ]}>
           {/* Food info header */}
           <View style={styles.foodInfo}>
-            <View style={[styles.foodIcon, { backgroundColor: `${colors.calories}15` }]}>
+            <View style={[styles.foodIcon, { backgroundColor: tint(colors.calories, 0.12) }]}>
               <Ionicons name="restaurant" size={20} color={colors.calories} />
             </View>
             <View style={{ flex: 1 }}>
@@ -71,7 +71,7 @@ export default function MealActionModal({ visible, meal, onEdit, onDelete, onClo
           </View>
 
           {/* Mini macros */}
-          <View style={[styles.macroRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]}>
+          <View style={[styles.macroRow, { backgroundColor: tint(colors.text, 0.04) }]}>
             <View style={styles.macroItem}>
               <View style={[styles.macroDot, { backgroundColor: colors.protein }]} />
               <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{t('dash_protein')}</Text>
@@ -92,16 +92,16 @@ export default function MealActionModal({ visible, meal, onEdit, onDelete, onClo
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(66,165,245,0.1)' : '#E3F2FD' }]}
+              style={[styles.actionBtn, { backgroundColor: tint(colors.primary, 0.08) }]}
               onPress={() => { handleClose(); setTimeout(() => onEdit(meal), 200); }}
               activeOpacity={0.7}
             >
-              <Ionicons name="create-outline" size={20} color="#42A5F5" />
-              <Text style={[styles.actionText, { color: '#42A5F5' }]}>{t('edit_meal')}</Text>
+              <Ionicons name="create-outline" size={20} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.primary }]}>{t('edit_meal')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(239,83,80,0.1)' : '#FFEBEE' }]}
+              style={[styles.actionBtn, { backgroundColor: tint(colors.error, 0.08) }]}
               onPress={() => {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 handleClose();

@@ -33,7 +33,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function DashboardScreen() {
   const navigation = useNavigation<Nav>();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, tint } = useTheme();
   const { t, lang } = useI18n();
   const { profile, isLoading: profileLoading } = useProfile();
   const { todaySummary, todayMeals, deleteMeal, isLoading: mealsLoading, refresh: refreshMeals } = useMeals();
@@ -168,9 +168,9 @@ export default function DashboardScreen() {
         {/* Exercises */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_exercises')}</Text>
-          <TouchableOpacity style={[styles.addExerciseBtn, { backgroundColor: isDark ? 'rgba(239,83,80,0.15)' : '#FFF0ED' }]} onPress={() => navigation.navigate('AddExercise')}>
-            <Ionicons name="flame" size={16} color={colors.error} />
-            <Text style={[styles.addExerciseText, { color: colors.error }]}>{t('dash_add_exercise')}</Text>
+          <TouchableOpacity style={[styles.addExerciseBtn, { backgroundColor: tint(colors.burned, 0.12) }]} onPress={() => navigation.navigate('AddExercise')}>
+            <Ionicons name="flame" size={16} color={colors.burned} />
+            <Text style={[styles.addExerciseText, { color: colors.burned }]}>{t('dash_add_exercise')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -230,7 +230,7 @@ export default function DashboardScreen() {
           activeOpacity={1}
           onPress={closeFab}
         >
-          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: overlayOpacity }]} />
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay, opacity: overlayOpacity }]} />
         </TouchableOpacity>
       )}
 
@@ -241,8 +241,8 @@ export default function DashboardScreen() {
             <Animated.View style={[styles.fabOptionRow, { opacity: fabAnim, transform: [{ scale: fabOption2Scale }] }]}>
               <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('exercise')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('fab_exercise')}>
                 <Text style={[styles.fabLabel, { color: colors.text, backgroundColor: colors.surface }]}>{t('fab_exercise')}</Text>
-                <View style={[styles.fabMini, { backgroundColor: colors.error }]}>
-                  <Ionicons name="flame" size={22} color="#fff" />
+                <View style={[styles.fabMini, { backgroundColor: colors.burned }]}>
+                  <Ionicons name="flame" size={22} color={colors.onPrimary} />
                 </View>
               </TouchableOpacity>
             </Animated.View>
@@ -252,7 +252,7 @@ export default function DashboardScreen() {
               <TouchableOpacity style={styles.fabOptionTouchable} onPress={() => handleFabAction('food')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('fab_food')}>
                 <Text style={[styles.fabLabel, { color: colors.text, backgroundColor: colors.surface }]}>{t('fab_food')}</Text>
                 <View style={[styles.fabMini, { backgroundColor: colors.calories }]}>
-                  <Ionicons name="restaurant" size={22} color="#fff" />
+                  <Ionicons name="restaurant" size={22} color={colors.onPrimary} />
                 </View>
               </TouchableOpacity>
             </Animated.View>
@@ -262,7 +262,7 @@ export default function DashboardScreen() {
         {/* Main FAB */}
         <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={toggleFab} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('add')} accessibilityState={{ expanded: fabOpen }}>
           <Animated.View style={{ transform: [{ rotate: fabRotate }] }}>
-            <Ionicons name="add" size={32} color="#fff" />
+            <Ionicons name="add" size={32} color={colors.onPrimary} />
           </Animated.View>
         </TouchableOpacity>
       </View>

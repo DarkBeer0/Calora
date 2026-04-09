@@ -43,9 +43,9 @@ export default function RecipesScreen() {
           </Text>
           <View style={styles.macroRow}>
             <Text style={[styles.macroChip, { color: colors.calories }]}>{r1(item.totalCalories / s)} kcal</Text>
-            <Text style={[styles.macroChip, { color: colors.protein }]}>P {r1(item.totalProtein / s)}</Text>
-            <Text style={[styles.macroChip, { color: colors.fat }]}>F {r1(item.totalFat / s)}</Text>
-            <Text style={[styles.macroChip, { color: colors.carbs }]}>C {r1(item.totalCarbs / s)}</Text>
+            <Text style={[styles.macroChip, { color: colors.protein }]}>{t('dash_protein_short' as any)} {r1(item.totalProtein / s)}</Text>
+            <Text style={[styles.macroChip, { color: colors.fat }]}>{t('dash_fat_short' as any)} {r1(item.totalFat / s)}</Text>
+            <Text style={[styles.macroChip, { color: colors.carbs }]}>{t('dash_carbs_short' as any)} {r1(item.totalCarbs / s)}</Text>
           </View>
         </TouchableOpacity>
         <TouchableOpacity style={styles.editBtn} onPress={() => handleEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

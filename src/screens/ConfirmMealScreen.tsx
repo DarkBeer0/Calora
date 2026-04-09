@@ -129,7 +129,7 @@ export default function ConfirmMealScreen() {
           <Ionicons
             name={foodIsFavorite ? 'star' : 'star-outline'}
             size={28}
-            color={foodIsFavorite ? '#FFB300' : colors.border}
+            color={foodIsFavorite ? colors.favorite : colors.border}
           />
         </TouchableOpacity>
       </View>

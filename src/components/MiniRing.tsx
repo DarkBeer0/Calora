@@ -51,7 +51,7 @@ export default function MiniRing({
   });
 
   return (
-    <View style={[styles.wrapper, { width: size }]}>
+    <View style={styles.wrapper}>
       <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
         <Svg width={size} height={size}>
           <Circle
@@ -61,7 +61,7 @@ export default function MiniRing({
             stroke={color}
             strokeWidth={strokeWidth}
             fill="none"
-            opacity={0.15}
+            opacity={0.12}
           />
           <AnimatedCircle
             cx={size / 2}
@@ -79,8 +79,8 @@ export default function MiniRing({
         </Svg>
         <Text style={[styles.ringValue, { color }]}>{current}</Text>
       </View>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
-      <Text style={[styles.remaining, { color: colors.border }]}>
+      <Text style={[styles.label, { color: colors.textSecondary }]} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.remaining, { color: colors.border }]} numberOfLines={1}>
         {moreLabel} {remaining}{unit}
       </Text>
     </View>
@@ -89,7 +89,9 @@ export default function MiniRing({
 
 const styles = StyleSheet.create({
   wrapper: {
+    flex: 1,
     alignItems: 'center',
+    minWidth: 0,
   },
   ringValue: {
     position: 'absolute',
@@ -97,12 +99,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   label: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: 11,
     marginTop: 4,
     fontWeight: '500',
+    textAlign: 'center',
   },
   remaining: {
     fontSize: 10,
     marginTop: 1,
+    textAlign: 'center',
   },
 });

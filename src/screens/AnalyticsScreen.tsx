@@ -42,7 +42,7 @@ function shortLabel(date: string): string {
 }
 
 export default function AnalyticsScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, tint } = useTheme();
   const { t, lang } = useI18n();
   const { getDailySummary, allMeals, refresh: refreshMeals } = useMeals();
   const { allExercises, getExercisesForDate, refresh: refreshExercises } = useExercises();
@@ -108,7 +108,7 @@ export default function AnalyticsScreen() {
     backgroundGradientFrom: colors.surface,
     backgroundGradientTo: colors.surface,
     decimalCount: 0,
-    color: (opacity = 1) => isDark ? `rgba(129,199,132,${opacity})` : `rgba(76,175,80,${opacity})`,
+    color: (opacity = 1) => tint(colors.primary, opacity),
     labelColor: () => colors.textSecondary,
     propsForDots: { r: '4', strokeWidth: '2', stroke: colors.primary },
     propsForBackgroundLines: { stroke: colors.border, strokeDasharray: '4' },
@@ -193,9 +193,9 @@ export default function AnalyticsScreen() {
   };
 
   const pieData = macroSum > 0 ? [
-    { name: t('dash_protein'), value: Math.round(macroTotals.protein), color: '#2196F3', legendFontColor: colors.textSecondary, legendFontSize: 13 },
-    { name: t('dash_fat'), value: Math.round(macroTotals.fat), color: '#FF5722', legendFontColor: colors.textSecondary, legendFontSize: 13 },
-    { name: t('dash_carbs'), value: Math.round(macroTotals.carbs), color: '#4CAF50', legendFontColor: colors.textSecondary, legendFontSize: 13 },
+    { name: t('dash_protein'), value: Math.round(macroTotals.protein), color: colors.protein, legendFontColor: colors.textSecondary, legendFontSize: 13 },
+    { name: t('dash_fat'), value: Math.round(macroTotals.fat), color: colors.fat, legendFontColor: colors.textSecondary, legendFontSize: 13 },
+    { name: t('dash_carbs'), value: Math.round(macroTotals.carbs), color: colors.carbs, legendFontColor: colors.textSecondary, legendFontSize: 13 },
   ] : [];
 
   return (
@@ -215,7 +215,7 @@ export default function AnalyticsScreen() {
               style={[styles.periodBtn, period === p && { backgroundColor: colors.primary }]}
               onPress={() => setPeriod(p)}
             >
-              <Text style={[styles.periodText, { color: period === p ? '#fff' : colors.textSecondary }]}>
+              <Text style={[styles.periodText, { color: period === p ? colors.onPrimary : colors.textSecondary }]}>
                 {t(p === 'week' ? 'analytics_week' : 'analytics_month')}
               </Text>
             </TouchableOpacity>
@@ -281,7 +281,7 @@ export default function AnalyticsScreen() {
 
           {/* Weight input */}
           <View style={styles.weightInputRow}>
-            <View style={[styles.weightInput, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}>
+            <View style={[styles.weightInput, { backgroundColor: tint(colors.text, 0.04), borderColor: colors.border }]}>
               <TextInput
                 style={[styles.weightTextInput, { color: colors.text }]}
                 value={weightInput}
@@ -299,14 +299,14 @@ export default function AnalyticsScreen() {
               style={[styles.weightAddBtn, { backgroundColor: colors.primary }]}
               onPress={handleAddWeight}
             >
-              <Ionicons name="add" size={22} color="#fff" />
+              <Ionicons name="add" size={22} color={colors.onPrimary} />
             </TouchableOpacity>
           </View>
 
           {/* Latest weight badge */}
           {hasWeightData && (
             <View style={styles.latestWeightRow}>
-              <Ionicons name="scale-outline" size={18} color="#9C27B0" />
+              <Ionicons name="scale-outline" size={18} color={colors.weight} />
               <Text style={[styles.latestWeightText, { color: colors.text }]}>
                 {weightData[weightData.length - 1].weight} kg
               </Text>
@@ -327,8 +327,8 @@ export default function AnalyticsScreen() {
               height={180}
               chartConfig={{
                 ...chartConfig,
-                color: (opacity = 1) => `rgba(156,39,176,${opacity})`,
-                propsForDots: { r: '5', strokeWidth: '2', stroke: '#9C27B0' },
+                color: (opacity = 1) => tint(colors.weight, opacity),
+                propsForDots: { r: '5', strokeWidth: '2', stroke: colors.weight },
               }}
               bezier
               style={styles.chart}

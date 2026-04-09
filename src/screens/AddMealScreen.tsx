@@ -59,7 +59,7 @@ function getMealTypeByTime(): MealEntry['mealType'] {
 
 export default function AddMealScreen() {
   const navigation = useNavigation<Nav>();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, tint } = useTheme();
   const { t, lang } = useI18n();
   const insets = useSafeAreaInsets();
   const { recentFoods, favoriteFoods, addRecent } = useFoods();
@@ -163,13 +163,13 @@ export default function AddMealScreen() {
   // ---- Renderers ----
 
   const renderUser = (m: Extract<ChatMessage, { type: 'user' }>) => (
-    <View style={[styles.userBubble, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
+    <View style={[styles.userBubble, { backgroundColor: tint(colors.text, 0.06) }]}>
       <Text style={[styles.userText, { color: colors.text }]}>{m.text}</Text>
     </View>
   );
 
   const renderError = (m: Extract<ChatMessage, { type: 'error' }>) => (
-    <View style={[styles.errorBubble, { backgroundColor: isDark ? 'rgba(239,83,80,0.1)' : '#FFF5F5' }]}>
+    <View style={[styles.errorBubble, { backgroundColor: tint(colors.error, 0.08) }]}>
       <Ionicons name="alert-circle" size={16} color={colors.error} />
       <Text style={[styles.errorText, { color: colors.error }]} numberOfLines={3}>{m.text}</Text>
     </View>
@@ -195,7 +195,7 @@ export default function AddMealScreen() {
       const cPct = dailyTarget.carbs > 0 ? Math.min(todaySummary.totalCarbs / dailyTarget.carbs, 1) : 0;
 
       return (
-        <View style={[styles.addedCard, { backgroundColor: isDark ? 'rgba(76,175,80,0.06)' : '#F1F8E9' }]}>
+        <View style={[styles.addedCard, { backgroundColor: tint(colors.primary, 0.06) }]}>
           <View style={styles.addedHeader}>
             <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
             <Text style={[styles.addedText, { color: colors.primary }]}>
@@ -214,19 +214,19 @@ export default function AddMealScreen() {
             </View>
             <View style={styles.addedMacroRow}>
               <View style={styles.addedMiniBar}>
-                <Text style={[styles.addedMiniLabel, { color: colors.protein }]}>P</Text>
+                <Text style={[styles.addedMiniLabel, { color: colors.protein }]}>{t('dash_protein_short' as any)}</Text>
                 <View style={[styles.addedMiniBarBg, { backgroundColor: `${colors.protein}20` }]}>
                   <View style={[styles.addedMiniBarFill, { width: `${pPct * 100}%`, backgroundColor: colors.protein }]} />
                 </View>
               </View>
               <View style={styles.addedMiniBar}>
-                <Text style={[styles.addedMiniLabel, { color: colors.fat }]}>F</Text>
+                <Text style={[styles.addedMiniLabel, { color: colors.fat }]}>{t('dash_fat_short' as any)}</Text>
                 <View style={[styles.addedMiniBarBg, { backgroundColor: `${colors.fat}20` }]}>
                   <View style={[styles.addedMiniBarFill, { width: `${fPct * 100}%`, backgroundColor: colors.fat }]} />
                 </View>
               </View>
               <View style={styles.addedMiniBar}>
-                <Text style={[styles.addedMiniLabel, { color: colors.carbs }]}>C</Text>
+                <Text style={[styles.addedMiniLabel, { color: colors.carbs }]}>{t('dash_carbs_short' as any)}</Text>
                 <View style={[styles.addedMiniBarBg, { backgroundColor: `${colors.carbs}20` }]}>
                   <View style={[styles.addedMiniBarFill, { width: `${cPct * 100}%`, backgroundColor: colors.carbs }]} />
                 </View>
@@ -248,7 +248,7 @@ export default function AddMealScreen() {
         </View>
 
         {/* Editable grams */}
-        <View style={[styles.gramsRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
+        <View style={[styles.gramsRow, { backgroundColor: tint(colors.text, 0.04) }]}>
           <Ionicons name="scale-outline" size={14} color={colors.textSecondary} />
           <TextInput
             style={[styles.gramsInput, { color: colors.text }]}
@@ -268,15 +268,15 @@ export default function AddMealScreen() {
         {/* Macros - subtle */}
         <View style={styles.macrosRow}>
           <Text style={[styles.macroItem, { color: colors.textSecondary }]}>
-            {t('dash_protein')} {totalP}{t('g')}
+            {t('dash_protein_short' as any)} {totalP}{t('g')}
           </Text>
           <Text style={[styles.macroDot, { color: colors.border }]}>·</Text>
           <Text style={[styles.macroItem, { color: colors.textSecondary }]}>
-            {t('dash_fat')} {totalF}{t('g')}
+            {t('dash_fat_short' as any)} {totalF}{t('g')}
           </Text>
           <Text style={[styles.macroDot, { color: colors.border }]}>·</Text>
           <Text style={[styles.macroItem, { color: colors.textSecondary }]}>
-            {t('dash_carbs')} {totalC}{t('g')}
+            {t('dash_carbs_short' as any)} {totalC}{t('g')}
           </Text>
         </View>
 
@@ -380,7 +380,7 @@ export default function AddMealScreen() {
 
   // Counter color: green → yellow → red
   const counterColor = remaining > 5 ? colors.primary
-    : remaining > 2 ? '#FF9800' : colors.error;
+    : remaining > 2 ? colors.warning : colors.error;
 
   return (
     <KeyboardAvoidingView
@@ -408,7 +408,7 @@ export default function AddMealScreen() {
       {/* Input bar + counter */}
       <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
         <View style={styles.inputRow}>
-          <View style={[styles.inputWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderColor: colors.border }]}>
+          <View style={[styles.inputWrap, { backgroundColor: tint(colors.text, 0.04), borderColor: colors.border }]}>
             <TextInput
               style={[styles.textInput, { color: colors.text }]}
               placeholder={t('ai_chat_placeholder')}

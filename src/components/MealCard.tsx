@@ -16,7 +16,7 @@ interface MealCardProps {
 }
 
 function MealCardInner({ meal, onDelete, onPress, onLongPress }: MealCardProps) {
-  const { colors, isDark } = useTheme();
+  const { colors, tint } = useTheme();
   const { t } = useI18n();
   const swipeableRef = useRef<Swipeable>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -42,8 +42,8 @@ function MealCardInner({ meal, onDelete, onPress, onLongPress }: MealCardProps) 
 
   const renderRightActions = () => (
     <TouchableOpacity style={[styles.swipeAction, { backgroundColor: colors.error }]} onPress={handleDelete} accessibilityRole="button" accessibilityLabel={t('delete')}>
-      <Ionicons name="trash-outline" size={22} color="#fff" />
-      <Text style={styles.swipeActionText}>{t('delete')}</Text>
+      <Ionicons name="trash-outline" size={22} color={colors.onError} />
+      <Text style={[styles.swipeActionText, { color: colors.onError }]}>{t('delete')}</Text>
     </TouchableOpacity>
   );
 
@@ -57,12 +57,12 @@ function MealCardInner({ meal, onDelete, onPress, onLongPress }: MealCardProps) 
         <Text style={[styles.calories, { color: colors.calories }]}>{meal.calories}</Text>
         <Text style={[styles.kcalLabel, { color: colors.textSecondary }]}>{t('kcal')}</Text>
       </View>
-      <View style={styles.macros}>
-        <Text style={[styles.macroText, { color: colors.textSecondary }]}>P {meal.protein}</Text>
+      <View style={[styles.macros, { borderTopColor: tint(colors.border, 0.5) }]}>
+        <Text style={[styles.macroText, { color: colors.textSecondary }]}>{t('dash_protein_short' as any)} {meal.protein}</Text>
         <Text style={[styles.macroDot, { color: colors.border }]}>·</Text>
-        <Text style={[styles.macroText, { color: colors.textSecondary }]}>F {meal.fat}</Text>
+        <Text style={[styles.macroText, { color: colors.textSecondary }]}>{t('dash_fat_short' as any)} {meal.fat}</Text>
         <Text style={[styles.macroDot, { color: colors.border }]}>·</Text>
-        <Text style={[styles.macroText, { color: colors.textSecondary }]}>C {meal.carbs}</Text>
+        <Text style={[styles.macroText, { color: colors.textSecondary }]}>{t('dash_carbs_short' as any)} {meal.carbs}</Text>
       </View>
     </View>
   );
@@ -143,7 +143,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingTop: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(128,128,128,0.15)',
     gap: 6,
   },
   macroText: {
@@ -162,7 +161,6 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.xs,
   },
   swipeActionText: {
-    color: '#fff',
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
     marginTop: 2,

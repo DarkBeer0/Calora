@@ -12,6 +12,16 @@ export interface ThemeContextType {
   colors: typeof COLORS;
   toggle: () => void;
   isDark: boolean;
+  /** Create a tinted background: tint('#FF9800', 0.12) → 'rgba(255,152,0,0.12)' */
+  tint: (hexColor: string, opacity: number) => string;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 const defaultCtx: ThemeContextType = {
@@ -19,6 +29,7 @@ const defaultCtx: ThemeContextType = {
   colors: COLORS,
   toggle: () => {},
   isDark: false,
+  tint: (hex, opacity) => hexToRgba(hex, opacity),
 };
 
 export const ThemeContext = createContext<ThemeContextType>(defaultCtx);
@@ -47,5 +58,10 @@ export function useThemeProvider() {
   const isDark = mode === 'dark';
   const colors = isDark ? (DARK_COLORS as unknown as typeof COLORS) : COLORS;
 
-  return { mode, colors, toggle, isDark };
+  const tint = useCallback(
+    (hex: string, opacity: number) => hexToRgba(hex, opacity),
+    []
+  );
+
+  return { mode, colors, toggle, isDark, tint };
 }

@@ -93,7 +93,7 @@ function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardPr
 
         {/* Right: burned */}
         <View style={styles.stat}>
-          <Ionicons name="flame" size={18} color={colors.error} />
+          <Ionicons name="flame" size={18} color={colors.burned} />
           <Text style={[styles.statValue, { color: colors.text }]}>{burned}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dash_burned')}</Text>
         </View>

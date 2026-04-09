@@ -15,7 +15,7 @@ interface ExerciseCardProps {
 }
 
 function ExerciseCardInner({ exercise, icon, onDelete }: ExerciseCardProps) {
-  const { colors, isDark } = useTheme();
+  const { colors, tint } = useTheme();
   const { t } = useI18n();
   const swipeableRef = useRef<Swipeable>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -41,21 +41,21 @@ function ExerciseCardInner({ exercise, icon, onDelete }: ExerciseCardProps) {
 
   const renderRightActions = () => (
     <TouchableOpacity style={[styles.swipeAction, { backgroundColor: colors.error }]} onPress={handleDelete}>
-      <Ionicons name="trash-outline" size={20} color="#fff" />
-      <Text style={styles.swipeActionText}>{t('delete')}</Text>
+      <Ionicons name="trash-outline" size={20} color={colors.onError} />
+      <Text style={[styles.swipeActionText, { color: colors.onError }]}>{t('delete')}</Text>
     </TouchableOpacity>
   );
 
   const cardContent = (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(239,83,80,0.15)' : '#FFF0ED' }]}>
-        <Ionicons name={(icon as any) || 'fitness'} size={20} color={colors.error} />
+      <View style={[styles.iconCircle, { backgroundColor: tint(colors.burned, 0.12) }]}>
+        <Ionicons name={(icon as any) || 'fitness'} size={20} color={colors.burned} />
       </View>
       <View style={styles.info}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{exercise.name}</Text>
         <Text style={[styles.meta, { color: colors.textSecondary }]}>{exercise.durationMin} {t('min')}</Text>
       </View>
-      <Text style={[styles.burned, { color: colors.error }]}>-{exercise.caloriesBurned} {t('kcal')}</Text>
+      <Text style={[styles.burned, { color: colors.burned }]}>-{exercise.caloriesBurned} {t('kcal')}</Text>
     </View>
   );
 
@@ -122,7 +122,6 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.xs,
   },
   swipeActionText: {
-    color: '#fff',
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
     marginTop: 2,
