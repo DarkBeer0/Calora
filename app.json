@@ -31,7 +31,9 @@
         "CAMERA",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -54,7 +56,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "e43cfdc9-fccd-497e-897c-b65d99d1c660"
       }
     }
   }

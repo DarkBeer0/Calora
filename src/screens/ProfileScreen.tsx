@@ -10,10 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useProfile } from '../hooks/useProfile';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n, LANGUAGE_LABELS } from '../i18n';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 import type { Language } from '../i18n';
 import { calculateDailyTarget } from '../utils/nutrition';
 import { useNotifications } from '../hooks/useNotifications';
@@ -39,6 +42,7 @@ export default function ProfileScreen() {
   const { colors, isDark, toggle: toggleTheme, tint } = useTheme();
   const { t, lang, setLang } = useI18n();
   const { profile, saveProfile, isLoading } = useProfile();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { settings: notifSettings, toggleSetting: toggleNotif, isSupported: notifSupported } = useNotifications();
 
   const [age, setAge] = useState('');
@@ -275,6 +279,17 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* Feedback */}
+      <TouchableOpacity
+        style={[styles.feedbackBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => navigation.navigate('Feedback')}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
+        <Text style={[styles.feedbackText, { color: colors.text }]}>{t('feedback_btn')}</Text>
+        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+      </TouchableOpacity>
+
       {/* Save */}
       <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.primary }]} onPress={handleSave} activeOpacity={0.8}>
         <Ionicons name="checkmark" size={20} color="#fff" />
@@ -397,6 +412,13 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
   },
+
+  // Feedback
+  feedbackBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    borderRadius: 16, borderWidth: 1, padding: SPACING.md, marginBottom: SPACING.sm,
+  },
+  feedbackText: { flex: 1, fontSize: FONT_SIZE.sm, fontWeight: '600' },
 
   // Save
   saveBtn: {

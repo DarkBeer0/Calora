@@ -255,4 +255,18 @@ export const en: Record<TranslationKey, string> = {
   analytics_import_error: 'Import error',
   analytics_import_confirm: 'Import will replace current data. Continue?',
   analytics_import_confirm_yes: 'Replace',
+
+  // Feedback
+  feedback_title: 'Feedback',
+  feedback_description: 'Found a bug, have an idea, or just want to say thanks? We read every message!',
+  feedback_name: 'Your name',
+  feedback_name_placeholder: 'How should we call you?',
+  feedback_email: 'Reply email',
+  feedback_email_placeholder: 'your@email.com',
+  feedback_message: 'Message',
+  feedback_message_placeholder: 'Describe your idea, issue, or feedback...',
+  feedback_send: 'Send',
+  feedback_sent: 'Thank you! Your message has been sent.',
+  feedback_error: 'Failed to send message. Please try later.',
+  feedback_btn: 'Feedback',
 };

@@ -255,4 +255,18 @@ export const pl: Record<TranslationKey, string> = {
   analytics_import_error: 'Błąd importu',
   analytics_import_confirm: 'Import zastąpi bieżące dane. Kontynuować?',
   analytics_import_confirm_yes: 'Zastąp',
+
+  // Feedback
+  feedback_title: 'Kontakt',
+  feedback_description: 'Znalazłeś błąd, masz pomysł lub po prostu chcesz podziękować? Czytamy każdą wiadomość!',
+  feedback_name: 'Twoje imię',
+  feedback_name_placeholder: 'Jak się do Ciebie zwracać?',
+  feedback_email: 'Email do odpowiedzi',
+  feedback_email_placeholder: 'twoj@email.com',
+  feedback_message: 'Wiadomość',
+  feedback_message_placeholder: 'Opisz swój pomysł, problem lub opinię...',
+  feedback_send: 'Wyślij',
+  feedback_sent: 'Dziękujemy! Twoja wiadomość została wysłana.',
+  feedback_error: 'Nie udało się wysłać wiadomości. Spróbuj później.',
+  feedback_btn: 'Kontakt',
 };

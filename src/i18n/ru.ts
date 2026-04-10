@@ -276,6 +276,20 @@ export const ru = {
   analytics_import_error: 'Ошибка импорта',
   analytics_import_confirm: 'Импорт заменит текущие данные. Продолжить?',
   analytics_import_confirm_yes: 'Заменить',
+
+  // Feedback
+  feedback_title: 'Обратная связь',
+  feedback_description: 'Нашли баг, есть идея или просто хотите сказать спасибо? Мы читаем каждое сообщение!',
+  feedback_name: 'Ваше имя',
+  feedback_name_placeholder: 'Как к вам обращаться?',
+  feedback_email: 'Email для ответа',
+  feedback_email_placeholder: 'your@email.com',
+  feedback_message: 'Сообщение',
+  feedback_message_placeholder: 'Опишите вашу идею, проблему или отзыв...',
+  feedback_send: 'Отправить',
+  feedback_sent: 'Спасибо! Ваше сообщение отправлено.',
+  feedback_error: 'Не удалось отправить сообщение. Попробуйте позже.',
+  feedback_btn: 'Обратная связь',
 } as const;
 
 export type TranslationKey = keyof typeof ru;

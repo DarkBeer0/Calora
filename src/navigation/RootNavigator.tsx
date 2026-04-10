@@ -18,6 +18,7 @@ import AddCustomFoodScreen from '../screens/AddCustomFoodScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import RecipesScreen from '../screens/RecipesScreen';
 import AddRecipeScreen from '../screens/AddRecipeScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -29,6 +30,7 @@ export type RootStackParamList = {
   AddRecipe: { editRecipe?: Recipe } | undefined;
   Analytics: undefined;
   Recipes: undefined;
+  Feedback: undefined;
 };
 
 export type TabParamList = {
@@ -130,6 +132,7 @@ export default function RootNavigator() {
         <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ title: t('recipe_new'), presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: t('tab_analytics'), presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="Recipes" component={RecipesScreen} options={{ title: t('recipe_select'), presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: t('feedback_title'), presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
