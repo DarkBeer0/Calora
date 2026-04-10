@@ -24,6 +24,38 @@ export interface AIFoodAnalysis {
   confidence: 'high' | 'medium' | 'low';
 }
 
+export async function analyzeFoodImage(
+  imageBase64: string,
+  lang: string = 'ru'
+): Promise<AIFoodAnalysis> {
+  if (!PROXY_URL) {
+    throw new Error('AI proxy URL is not configured');
+  }
+
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+  };
+  if (APP_SECRET) headers['x-app-secret'] = APP_SECRET;
+
+  const response = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ image: imageBase64, lang }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    throw new Error(`AI request failed (${response.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const data = await response.json();
+  if (!data?.analysis) {
+    throw new Error('AI did not return structured data');
+  }
+
+  return data.analysis as AIFoodAnalysis;
+}
+
 export async function analyzeFoodText(
   text: string,
   lang: string = 'ru'

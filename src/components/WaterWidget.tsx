@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, TextInput, Alert, Keyboard } from 'react-native';
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -193,14 +193,20 @@ export default function WaterWidget({ todayTotal, goal, onAdd, onUndo }: WaterWi
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
                 maxLength={5}
-                onSubmitEditing={handleCustomAdd}
+                onSubmitEditing={() => { handleCustomAdd(); Keyboard.dismiss(); }}
                 returnKeyType="done"
+                onFocus={(e) => {
+                  // Scroll parent to make input visible above keyboard
+                  (e.target as any)?.measureInWindow?.((x: number, y: number) => {
+                    // handled by ScrollView keyboardShouldPersistTaps
+                  });
+                }}
               />
               <Text style={[styles.customSuffix, { color: colors.textSecondary }]}>{t('water_ml')}</Text>
             </View>
             <TouchableOpacity
               style={[styles.customAddBtn, { backgroundColor: fillColor }]}
-              onPress={handleCustomAdd}
+              onPress={() => { handleCustomAdd(); Keyboard.dismiss(); }}
             >
               <Ionicons name="add" size={22} color="#fff" />
             </TouchableOpacity>

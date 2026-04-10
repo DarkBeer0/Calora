@@ -27,8 +27,16 @@ const ACTIVITY_KEYS: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'activ
 const GOAL_KEYS: Goal[] = ['lose', 'maintain', 'gain'];
 const LANGUAGE_KEYS: Language[] = ['ru', 'en', 'pl'];
 
+const ACTIVITY_ICONS: Record<ActivityLevel, string> = {
+  sedentary: 'bed-outline',
+  light: 'walk-outline',
+  moderate: 'bicycle-outline',
+  active: 'barbell-outline',
+  veryActive: 'flame-outline',
+};
+
 export default function ProfileScreen() {
-  const { colors, isDark, toggle: toggleTheme } = useTheme();
+  const { colors, isDark, toggle: toggleTheme, tint } = useTheme();
   const { t, lang, setLang } = useI18n();
   const { profile, saveProfile, isLoading } = useProfile();
   const { settings: notifSettings, toggleSetting: toggleNotif, isSupported: notifSupported } = useNotifications();
@@ -40,6 +48,7 @@ export default function ProfileScreen() {
   const [gender, setGender] = useState<Gender>('male');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [goal, setGoal] = useState<Goal>('maintain');
+  const [notifExpanded, setNotifExpanded] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
@@ -103,168 +112,176 @@ export default function ProfileScreen() {
     gain: 'goal_gain',
   };
 
+  const GOAL_ICONS: Record<Goal, string> = {
+    lose: 'trending-down',
+    maintain: 'swap-horizontal',
+    gain: 'trending-up',
+  };
+
   return (
     <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.container}>
       <Text style={[styles.title, { color: colors.text }]}>{t('profile_title')}</Text>
 
-      {/* Numeric inputs */}
-      <View style={styles.row}>
-        <NumericField label={t('profile_age')} value={age} onChange={setAge} suffix={t('profile_age_unit')} colors={colors} />
-        <NumericField label={t('profile_weight')} value={weight} onChange={setWeight} suffix={t('profile_weight_unit')} colors={colors} />
-        <NumericField label={t('profile_height')} value={height} onChange={setHeight} suffix={t('profile_height_unit')} colors={colors} />
+      {/* Card 1: Body Metrics */}
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.metricsRow}>
+          <NumericField label={t('profile_age')} value={age} onChange={setAge} suffix={t('profile_age_unit')} colors={colors} />
+          <NumericField label={t('profile_weight')} value={weight} onChange={setWeight} suffix={t('profile_weight_unit')} colors={colors} />
+          <NumericField label={t('profile_height')} value={height} onChange={setHeight} suffix={t('profile_height_unit')} colors={colors} />
+          <NumericField label={t('water_goal')} value={waterGoal} onChange={setWaterGoal} suffix={t('water_ml')} colors={colors} />
+        </View>
+
+        {/* Gender — compact */}
+        <View style={styles.genderRow}>
+          {(['male', 'female'] as Gender[]).map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.genderBtn, { backgroundColor: gender === key ? tint(colors.primary, 0.12) : 'transparent', borderColor: gender === key ? colors.primary : colors.border }]}
+              onPress={() => setGender(key)}
+            >
+              <Ionicons name={key === 'male' ? 'male' : 'female'} size={16} color={gender === key ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.genderText, { color: gender === key ? colors.primary : colors.text }]}>
+                {t(key === 'male' ? 'profile_male' : 'profile_female')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      {/* Water goal */}
-      <View style={styles.row}>
-        <NumericField label={t('water_goal')} value={waterGoal} onChange={setWaterGoal} suffix={t('water_ml')} colors={colors} />
-      </View>
-
-      {/* Gender */}
-      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_gender')}</Text>
-      <View style={styles.segmented}>
-        {(['male', 'female'] as Gender[]).map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.segmentItem, { backgroundColor: colors.surface, borderColor: colors.border }, gender === key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-            onPress={() => setGender(key)}
-          >
-            <Text style={[styles.segmentText, { color: colors.text }, gender === key && styles.segmentTextActive]}>
-              {t(key === 'male' ? 'profile_male' : 'profile_female')}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Activity */}
-      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_activity')}</Text>
-      <View style={styles.optionList}>
-        {ACTIVITY_KEYS.map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.optionItem, { backgroundColor: colors.surface, borderColor: colors.border }, activityLevel === key && { backgroundColor: isDark ? `${colors.primary}30` : '#E8F5E9', borderColor: colors.primary }]}
-            onPress={() => setActivityLevel(key)}
-          >
-            <Text style={[styles.optionText, { color: colors.text }, activityLevel === key && { color: colors.primary, fontWeight: '600' }]}>
-              {t(ACTIVITY_I18N[key] as any)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Goal */}
-      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_goal')}</Text>
-      <View style={styles.segmented}>
-        {GOAL_KEYS.map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.segmentItem, { backgroundColor: colors.surface, borderColor: colors.border }, goal === key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-            onPress={() => setGoal(key)}
-          >
-            <Text style={[styles.segmentText, { color: colors.text }, goal === key && styles.segmentTextActive]}>
-              {t(GOAL_I18N[key] as any)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Theme toggle */}
-      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_theme')}</Text>
-      <TouchableOpacity
-        style={[styles.settingRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        onPress={toggleTheme}
-        activeOpacity={0.7}
-      >
-        <Ionicons name={isDark ? 'moon' : 'sunny'} size={22} color={colors.primary} />
-        <Text style={[styles.settingRowText, { color: colors.text }]}>
-          {isDark ? t('profile_theme_dark') : t('profile_theme_light')}
-        </Text>
-        <Ionicons name="swap-horizontal" size={20} color={colors.textSecondary} />
-      </TouchableOpacity>
-
-      {/* Language selector */}
-      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('profile_language')}</Text>
-      <View style={styles.segmented}>
-        {LANGUAGE_KEYS.map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.segmentItem, { backgroundColor: colors.surface, borderColor: colors.border }, lang === key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-            onPress={() => setLang(key)}
-          >
-            <Text style={[styles.segmentText, { color: colors.text }, lang === key && styles.segmentTextActive]}>
-              {LANGUAGE_LABELS[key]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Notifications — only show if supported (not Expo Go) */}
-      {notifSupported && (
-      <>
-      <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('notif_section')}</Text>
-      <View style={styles.notifList}>
-        <NotifToggle
-          icon="restaurant"
-          label={t('notif_meals')}
-          desc={t('notif_meals_desc')}
-          enabled={notifSettings.meals}
-          onToggle={() => toggleNotif('meals', {
-            notif_breakfast_title: t('notif_breakfast_title'), notif_breakfast_body: t('notif_breakfast_body'),
-            notif_lunch_title: t('notif_lunch_title'), notif_lunch_body: t('notif_lunch_body'),
-            notif_dinner_title: t('notif_dinner_title'), notif_dinner_body: t('notif_dinner_body'),
-            notif_water_title: t('notif_water_title'), notif_water_body: t('notif_water_body'),
-            notif_summary_title: t('notif_summary_title'), notif_summary_body: t('notif_summary_body'),
-          })}
-          colors={colors}
-        />
-        <NotifToggle
-          icon="water"
-          label={t('notif_water')}
-          desc={t('notif_water_desc')}
-          enabled={notifSettings.water}
-          onToggle={() => toggleNotif('water', {
-            notif_breakfast_title: t('notif_breakfast_title'), notif_breakfast_body: t('notif_breakfast_body'),
-            notif_lunch_title: t('notif_lunch_title'), notif_lunch_body: t('notif_lunch_body'),
-            notif_dinner_title: t('notif_dinner_title'), notif_dinner_body: t('notif_dinner_body'),
-            notif_water_title: t('notif_water_title'), notif_water_body: t('notif_water_body'),
-            notif_summary_title: t('notif_summary_title'), notif_summary_body: t('notif_summary_body'),
-          })}
-          colors={colors}
-        />
-        <NotifToggle
-          icon="stats-chart"
-          label={t('notif_summary')}
-          desc={t('notif_summary_desc')}
-          enabled={notifSettings.summary}
-          onToggle={() => toggleNotif('summary', {
-            notif_breakfast_title: t('notif_breakfast_title'), notif_breakfast_body: t('notif_breakfast_body'),
-            notif_lunch_title: t('notif_lunch_title'), notif_lunch_body: t('notif_lunch_body'),
-            notif_dinner_title: t('notif_dinner_title'), notif_dinner_body: t('notif_dinner_body'),
-            notif_water_title: t('notif_water_title'), notif_water_body: t('notif_water_body'),
-            notif_summary_title: t('notif_summary_title'), notif_summary_body: t('notif_summary_body'),
-          })}
-          colors={colors}
-        />
-      </View>
-      </>
-      )}
-
-      {/* Save button */}
-      <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave} activeOpacity={0.8}>
-        <Text style={styles.saveButtonText}>{t('save')}</Text>
-      </TouchableOpacity>
-
-      {/* KBJU Target */}
+      {/* Daily Norm — immediate feedback */}
       {target && (
-        <View style={[styles.targetCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.targetTitle, { color: colors.text }]}>{t('profile_daily_norm')}</Text>
-          <View style={styles.targetRow}>
-            <TargetBadge label={t('kcal')} value={target.calories} color={colors.calories} textSecondary={colors.textSecondary} />
-            <TargetBadge label={t('dash_protein')} value={target.protein} color={colors.protein} suffix={t('g')} textSecondary={colors.textSecondary} />
-            <TargetBadge label={t('dash_fat')} value={target.fat} color={colors.fat} suffix={t('g')} textSecondary={colors.textSecondary} />
-            <TargetBadge label={t('dash_carbs')} value={target.carbs} color={colors.carbs} suffix={t('g')} textSecondary={colors.textSecondary} />
+        <View style={[styles.normCard, { backgroundColor: tint(colors.primary, 0.06), borderColor: tint(colors.primary, 0.15) }]}>
+          <View style={styles.normRow}>
+            <NormBadge value={target.calories} label={t('kcal')} color={colors.calories} />
+            <NormBadge value={target.protein} label={t('dash_protein')} color={colors.protein} suffix={t('g')} />
+            <NormBadge value={target.fat} label={t('dash_fat')} color={colors.fat} suffix={t('g')} />
+            <NormBadge value={target.carbs} label={t('dash_carbs')} color={colors.carbs} suffix={t('g')} />
           </View>
         </View>
       )}
+
+      {/* Card 2: Activity & Goal */}
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {/* Activity — icon grid */}
+        <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>{t('profile_activity')}</Text>
+        <View style={styles.activityGrid}>
+          {ACTIVITY_KEYS.map((key) => {
+            const active = activityLevel === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[styles.activityChip, { backgroundColor: active ? tint(colors.primary, 0.12) : tint(colors.text, 0.04), borderColor: active ? colors.primary : 'transparent' }]}
+                onPress={() => setActivityLevel(key)}
+              >
+                <Ionicons name={ACTIVITY_ICONS[key] as any} size={18} color={active ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.activityText, { color: active ? colors.primary : colors.text }]} numberOfLines={1}>
+                  {t(ACTIVITY_I18N[key] as any)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Goal — icon segments */}
+        <Text style={[styles.cardLabel, { color: colors.textSecondary, marginTop: SPACING.md }]}>{t('profile_goal')}</Text>
+        <View style={styles.goalRow}>
+          {GOAL_KEYS.map((key) => {
+            const active = goal === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[styles.goalBtn, { backgroundColor: active ? colors.primary : tint(colors.text, 0.04) }]}
+                onPress={() => setGoal(key)}
+              >
+                <Ionicons name={GOAL_ICONS[key] as any} size={16} color={active ? '#fff' : colors.textSecondary} />
+                <Text style={[styles.goalText, { color: active ? '#fff' : colors.text }]}>
+                  {t(GOAL_I18N[key] as any)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Card 3: Preferences */}
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {/* Theme */}
+        <TouchableOpacity style={styles.prefRow} onPress={toggleTheme} activeOpacity={0.7}>
+          <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colors.primary} />
+          <Text style={[styles.prefText, { color: colors.text }]}>
+            {isDark ? t('profile_theme_dark') : t('profile_theme_light')}
+          </Text>
+          <Ionicons name="swap-horizontal" size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        {/* Language */}
+        <View style={styles.prefRow}>
+          <Ionicons name="globe-outline" size={20} color={colors.primary} />
+          <Text style={[styles.prefText, { color: colors.text }]}>{t('profile_language')}</Text>
+        </View>
+        <View style={styles.langRow}>
+          {LANGUAGE_KEYS.map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.langBtn, { backgroundColor: lang === key ? colors.primary : tint(colors.text, 0.04) }]}
+              onPress={() => setLang(key)}
+            >
+              <Text style={[styles.langText, { color: lang === key ? '#fff' : colors.text }]}>
+                {LANGUAGE_LABELS[key]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Notifications — collapsible */}
+      {notifSupported && (
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <TouchableOpacity style={styles.prefRow} onPress={() => setNotifExpanded(!notifExpanded)} activeOpacity={0.7}>
+            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+            <Text style={[styles.prefText, { color: colors.text }]}>{t('notif_section')}</Text>
+            <Ionicons name={notifExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+          {notifExpanded && (
+            <View style={{ marginTop: SPACING.sm, gap: SPACING.xs }}>
+              {([
+                { key: 'meals' as const, icon: 'restaurant', label: t('notif_meals') },
+                { key: 'water' as const, icon: 'water', label: t('notif_water') },
+                { key: 'summary' as const, icon: 'stats-chart', label: t('notif_summary') },
+              ]).map((item) => (
+                <TouchableOpacity
+                  key={item.key}
+                  style={[styles.notifRow, { backgroundColor: tint(colors.text, 0.04) }]}
+                  onPress={() => toggleNotif(item.key, {
+                    notif_breakfast_title: t('notif_breakfast_title'), notif_breakfast_body: t('notif_breakfast_body'),
+                    notif_lunch_title: t('notif_lunch_title'), notif_lunch_body: t('notif_lunch_body'),
+                    notif_dinner_title: t('notif_dinner_title'), notif_dinner_body: t('notif_dinner_body'),
+                    notif_water_title: t('notif_water_title'), notif_water_body: t('notif_water_body'),
+                    notif_summary_title: t('notif_summary_title'), notif_summary_body: t('notif_summary_body'),
+                  })}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name={item.icon as any} size={16} color={notifSettings[item.key] ? colors.primary : colors.textSecondary} />
+                  <Text style={[styles.notifLabel, { color: colors.text }]}>{item.label}</Text>
+                  <View style={[styles.notifDot, { backgroundColor: notifSettings[item.key] ? colors.primary : colors.border }]}>
+                    {notifSettings[item.key] && <Ionicons name="checkmark" size={12} color="#fff" />}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Save */}
+      <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.primary }]} onPress={handleSave} activeOpacity={0.8}>
+        <Ionicons name="checkmark" size={20} color="#fff" />
+        <Text style={styles.saveBtnText}>{t('save')}</Text>
+      </TouchableOpacity>
+
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 }
@@ -280,53 +297,26 @@ function NumericField({
   return (
     <View style={styles.numericField}>
       <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{label}</Text>
-      <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.fieldValueRow, { borderColor: colors.border, borderWidth: 1, borderRadius: 10, paddingVertical: 6, paddingHorizontal: 4, borderStyle: 'dashed' }]}>
         <TextInput
-          style={[styles.input, { color: colors.text }]}
+          style={[styles.fieldInput, { color: colors.text }]}
           value={value}
           onChangeText={onChange}
           keyboardType="numeric"
           maxLength={5}
+          selectTextOnFocus
         />
-        <Text style={[styles.suffix, { color: colors.textSecondary }]}>{suffix}</Text>
+        <Text style={[styles.fieldSuffix, { color: colors.textSecondary }]}>{suffix}</Text>
       </View>
     </View>
   );
 }
 
-function NotifToggle({
-  icon, label, desc, enabled, onToggle, colors,
-}: {
-  icon: string; label: string; desc: string; enabled: boolean; onToggle: () => void;
-  colors: { surface: string; border: string; text: string; textSecondary: string; primary: string };
-}) {
+function NormBadge({ value, label, color, suffix }: { value: number; label: string; color: string; suffix?: string }) {
   return (
-    <TouchableOpacity
-      style={[styles.notifRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      onPress={onToggle}
-      activeOpacity={0.7}
-    >
-      <Ionicons name={icon as any} size={20} color={enabled ? colors.primary : colors.textSecondary} />
-      <View style={styles.notifInfo}>
-        <Text style={[styles.notifLabel, { color: colors.text }]}>{label}</Text>
-        <Text style={[styles.notifDesc, { color: colors.textSecondary }]}>{desc}</Text>
-      </View>
-      <View style={[styles.notifDot, { backgroundColor: enabled ? colors.primary : colors.border }]}>
-        {enabled && <Ionicons name="checkmark" size={14} color="#fff" />}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function TargetBadge({
-  label, value, color, suffix, textSecondary,
-}: {
-  label: string; value: number; color: string; suffix?: string; textSecondary: string;
-}) {
-  return (
-    <View style={styles.badge}>
-      <Text style={[styles.badgeValue, { color }]}>{value}{suffix ?? ''}</Text>
-      <Text style={[styles.badgeLabel, { color: textSecondary }]}>{label}</Text>
+    <View style={styles.normBadge}>
+      <Text style={[styles.normValue, { color }]}>{value}{suffix ?? ''}</Text>
+      <Text style={[styles.normLabel, { color }]}>{label}</Text>
     </View>
   );
 }
@@ -338,65 +328,80 @@ const styles = StyleSheet.create({
   container: { padding: SPACING.lg, paddingTop: 60, paddingBottom: 40 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontSize: FONT_SIZE.md },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: SPACING.lg },
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: SPACING.md },
 
-  row: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md },
-  numericField: { flex: 1 },
-  fieldLabel: { fontSize: FONT_SIZE.xs, marginBottom: SPACING.xs },
-  inputRow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderRadius: 14, borderWidth: 1, paddingHorizontal: SPACING.sm,
+  // Cards
+  card: {
+    borderRadius: 16, borderWidth: 1, padding: SPACING.md, marginBottom: SPACING.sm,
   },
-  input: { flex: 1, fontSize: FONT_SIZE.lg, paddingVertical: SPACING.sm },
-  suffix: { fontSize: FONT_SIZE.sm },
+  cardLabel: { fontSize: FONT_SIZE.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.xs },
 
-  sectionLabel: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginTop: SPACING.md, marginBottom: SPACING.sm },
+  // Body metrics
+  metricsRow: { flexDirection: 'row', gap: SPACING.sm },
+  numericField: { flex: 1, alignItems: 'center' },
+  fieldLabel: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
+  fieldValueRow: { alignItems: 'center' },
+  fieldInput: { fontSize: FONT_SIZE.lg, fontWeight: '700', textAlign: 'center', padding: 0, minWidth: 40 },
+  fieldSuffix: { fontSize: 10, marginTop: 1 },
 
-  segmented: { flexDirection: 'row', gap: SPACING.sm },
-  segmentItem: {
-    flex: 1, paddingVertical: SPACING.sm, borderRadius: 14,
-    borderWidth: 1, alignItems: 'center',
+  // Gender
+  genderRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
+  genderBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 4, paddingVertical: 8, borderRadius: 10, borderWidth: 1,
   },
-  segmentText: { fontSize: FONT_SIZE.sm },
-  segmentTextActive: { color: '#fff', fontWeight: '700' },
+  genderText: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
 
-  optionList: { gap: SPACING.xs },
-  optionItem: {
-    paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md,
-    borderRadius: 14, borderWidth: 1,
+  // Daily norm
+  normCard: {
+    borderRadius: 16, borderWidth: 1, padding: SPACING.md, marginBottom: SPACING.sm,
   },
-  optionText: { fontSize: FONT_SIZE.sm },
+  normRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  normBadge: { alignItems: 'center' },
+  normValue: { fontSize: FONT_SIZE.lg, fontWeight: '800' },
+  normLabel: { fontSize: 10, fontWeight: '600', marginTop: 2, opacity: 0.7 },
 
-  settingRow: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    padding: SPACING.md, borderRadius: 14, borderWidth: 1,
+  // Activity grid
+  activityGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs,
   },
-  settingRowText: { flex: 1, fontSize: FONT_SIZE.sm, fontWeight: '600' },
-
-  saveButton: {
-    marginTop: SPACING.lg, paddingVertical: 14, borderRadius: 14, alignItems: 'center',
+  activityChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: SPACING.sm, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5,
   },
-  saveButtonText: { color: '#fff', fontSize: FONT_SIZE.md, fontWeight: '700' },
+  activityText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
 
-  targetCard: {
-    marginTop: SPACING.lg, borderRadius: 20, padding: SPACING.lg, borderWidth: 1,
+  // Goal
+  goalRow: { flexDirection: 'row', gap: SPACING.sm },
+  goalBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 4, paddingVertical: 10, borderRadius: 10,
   },
-  targetTitle: { fontSize: FONT_SIZE.md, fontWeight: '600', marginBottom: SPACING.md, textAlign: 'center' },
-  targetRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  badge: { alignItems: 'center' },
-  badgeValue: { fontSize: FONT_SIZE.xl, fontWeight: '700' },
-  badgeLabel: { fontSize: FONT_SIZE.xs, marginTop: 2 },
+  goalText: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
 
-  notifList: { gap: SPACING.xs },
+  // Preferences
+  prefRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  prefText: { flex: 1, fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  divider: { height: 1, marginVertical: SPACING.sm },
+  langRow: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.xs },
+  langBtn: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 8 },
+  langText: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
+
+  // Notifications
   notifRow: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    padding: SPACING.md, borderRadius: 14, borderWidth: 1,
+    padding: SPACING.sm, borderRadius: 10,
   },
-  notifInfo: { flex: 1 },
-  notifLabel: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
-  notifDesc: { fontSize: FONT_SIZE.xs, marginTop: 2 },
+  notifLabel: { flex: 1, fontSize: FONT_SIZE.xs, fontWeight: '500' },
   notifDot: {
-    width: 24, height: 24, borderRadius: 12,
+    width: 20, height: 20, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
   },
+
+  // Save
+  saveBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACING.xs, marginTop: SPACING.sm, paddingVertical: 14, borderRadius: 14,
+  },
+  saveBtnText: { color: '#fff', fontSize: FONT_SIZE.md, fontWeight: '700' },
 });

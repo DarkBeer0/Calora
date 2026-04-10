@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, RefreshControl, Animated } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, RefreshControl, Animated, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,17 +16,10 @@ import { useExercises } from '../hooks/useExercises';
 import { useWater } from '../hooks/useWater';
 import CalorieSummaryCard from '../components/CalorieSummaryCard';
 import MiniRing from '../components/MiniRing';
-import MealCard from '../components/MealCard';
 import ExerciseCard from '../components/ExerciseCard';
 import WaterWidget from '../components/WaterWidget';
-import MealActionModal from '../components/MealActionModal';
 import SkeletonDashboard from '../components/SkeletonDashboard';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import type { MealEntry } from '../types';
-
-const handleEditMeal = (navigation: NativeStackNavigationProp<RootStackParamList>, meal: MealEntry) => {
-  navigation.navigate('ConfirmMeal', { food: meal.foodItem, editMeal: meal });
-};
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -36,13 +29,13 @@ export default function DashboardScreen() {
   const { colors, isDark, tint } = useTheme();
   const { t, lang } = useI18n();
   const { profile, isLoading: profileLoading } = useProfile();
-  const { todaySummary, todayMeals, deleteMeal, isLoading: mealsLoading, refresh: refreshMeals } = useMeals();
+  const { todaySummary, isLoading: mealsLoading, refresh: refreshMeals } = useMeals();
   const { todayExercises, todayBurned, deleteExercise, isLoading: exLoading, refresh: refreshExercises } = useExercises();
   const { todayTotal: waterTotal, addWater, removeLastEntry: undoWater, isLoading: waterLoading, refresh: refreshWater } = useWater();
 
   const [refreshing, setRefreshing] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
-  const [modalMeal, setModalMeal] = useState<MealEntry | null>(null);
+  const [microExpanded, setMicroExpanded] = useState(false);
   const fabAnim = useRef(new Animated.Value(0)).current;
 
   // Section fade-in animations
@@ -126,6 +119,8 @@ export default function DashboardScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
@@ -148,13 +143,20 @@ export default function DashboardScreen() {
           <MiniRing progress={target.carbs > 0 ? totalCarbs / target.carbs : 0} color={colors.carbs} current={Math.round(totalCarbs)} target={target.carbs} label={t('dash_carbs')} moreLabel={t('dash_more')} />
         </Animated.View>
 
-        {/* Micro nutrients */}
+        {/* Micro nutrients — collapsible */}
         <Animated.View style={[styles.microCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: fadeMicro, transform: [{ translateY: fadeMicro.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_extra')}</Text>
-          <MicroRow label={t('dash_fiber')} current={r1(totalFiber)} target={DAILY_MICRO_TARGETS.fiber} color={colors.fiber} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} good />
-          <MicroRow label={t('dash_sugars')} current={r1(totalSugars)} target={DAILY_MICRO_TARGETS.sugars} color={colors.sugars} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
-          <MicroRow label={t('dash_sat_fat')} current={r1(totalSaturatedFat)} target={DAILY_MICRO_TARGETS.saturatedFat} color={colors.saturatedFat} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
-          <MicroRow label={t('dash_salt')} current={r1(totalSalt)} target={DAILY_MICRO_TARGETS.salt} color={colors.salt} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
+          <TouchableOpacity style={styles.microHeader} onPress={() => setMicroExpanded(!microExpanded)} activeOpacity={0.7}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_extra')}</Text>
+            <Ionicons name={microExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+          {microExpanded && (
+            <View style={{ marginTop: SPACING.sm }}>
+              <MicroRow label={t('dash_fiber')} current={r1(totalFiber)} target={DAILY_MICRO_TARGETS.fiber} color={colors.fiber} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} good />
+              <MicroRow label={t('dash_sugars')} current={r1(totalSugars)} target={DAILY_MICRO_TARGETS.sugars} color={colors.sugars} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
+              <MicroRow label={t('dash_sat_fat')} current={r1(totalSaturatedFat)} target={DAILY_MICRO_TARGETS.saturatedFat} color={colors.saturatedFat} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
+              <MicroRow label={t('dash_salt')} current={r1(totalSalt)} target={DAILY_MICRO_TARGETS.salt} color={colors.salt} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} />
+            </View>
+          )}
         </Animated.View>
 
         {/* Water - centered */}
@@ -165,63 +167,24 @@ export default function DashboardScreen() {
           onUndo={undoWater}
         />
 
-        {/* Exercises */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_exercises')}</Text>
-          <TouchableOpacity style={[styles.addExerciseBtn, { backgroundColor: tint(colors.burned, 0.12) }]} onPress={() => navigation.navigate('AddExercise')}>
-            <Ionicons name="flame" size={16} color={colors.burned} />
-            <Text style={[styles.addExerciseText, { color: colors.burned }]}>{t('dash_add_exercise')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {todayExercises.length === 0 ? (
-          <TouchableOpacity style={[styles.exerciseEmpty, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('AddExercise')}>
-            <Ionicons name="bicycle-outline" size={28} color={colors.border} />
-            <Text style={{ fontSize: FONT_SIZE.sm, color: colors.textSecondary }}>{t('dash_add_workout')}</Text>
-          </TouchableOpacity>
-        ) : (
-          todayExercises.map((ex) => (
-            <ExerciseCard key={ex.id} exercise={ex} icon={EXERCISES[ex.exerciseType]?.icon} onDelete={deleteExercise} />
-          ))
+        {/* Exercises — only show when there are entries */}
+        {todayExercises.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_exercises')}</Text>
+              <TouchableOpacity style={[styles.addExerciseBtn, { backgroundColor: tint(colors.burned, 0.12) }]} onPress={() => navigation.navigate('AddExercise')}>
+                <Ionicons name="flame" size={16} color={colors.burned} />
+                <Text style={[styles.addExerciseText, { color: colors.burned }]}>{t('dash_add_exercise')}</Text>
+              </TouchableOpacity>
+            </View>
+            {todayExercises.map((ex) => (
+              <ExerciseCard key={ex.id} exercise={ex} icon={EXERCISES[ex.exerciseType]?.icon} onDelete={deleteExercise} />
+            ))}
+          </>
         )}
 
-        {/* Meals — flat list, no grouping */}
-        <View style={[styles.sectionHeader, { marginTop: SPACING.lg }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_meals')}</Text>
-        </View>
-
-        {todayMeals.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="restaurant-outline" size={40} color={colors.border} />
-            <Text style={{ fontSize: FONT_SIZE.md, color: colors.textSecondary, marginTop: SPACING.sm }}>{t('dash_no_meals')}</Text>
-            <Text style={{ fontSize: FONT_SIZE.sm, color: colors.border, marginTop: SPACING.xs }}>{t('dash_no_meals_hint')}</Text>
-          </View>
-        ) : (
-          todayMeals.map((meal) => (
-            <MealCard
-              key={meal.id}
-              meal={meal}
-              onDelete={deleteMeal}
-              onPress={(m) => handleEditMeal(navigation, m)}
-              onLongPress={(m) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setModalMeal(m);
-              }}
-            />
-          ))
-        )}
-
-        <View style={{ height: 100 }} />
+        <View style={{ height: 20 }} />
       </ScrollView>
-
-      {/* Meal action modal */}
-      <MealActionModal
-        visible={!!modalMeal}
-        meal={modalMeal}
-        onEdit={(m) => handleEditMeal(navigation, m)}
-        onDelete={deleteMeal}
-        onClose={() => setModalMeal(null)}
-      />
 
       {/* FAB Speed Dial */}
       {fabOpen && (
@@ -318,18 +281,14 @@ const styles = StyleSheet.create({
   microCard: {
     borderRadius: 20, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1,
   },
+  microHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
   sectionTitle: { fontSize: FONT_SIZE.md, fontWeight: '700' },
   addExerciseBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: 10 },
   addExerciseText: { fontSize: FONT_SIZE.xs, fontWeight: '700' },
-
-  exerciseEmpty: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    borderRadius: 16, padding: SPACING.md, borderWidth: 1, borderStyle: 'dashed',
-  },
-
-  emptyState: { alignItems: 'center', paddingVertical: SPACING.lg },
 
   overlay: {
     ...StyleSheet.absoluteFillObject,

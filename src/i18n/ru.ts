@@ -266,6 +266,8 @@ export const ru = {
   ai_limit_title: 'Лимит запросов',
   ai_limit_msg: 'Вы использовали все AI-запросы на сегодня. Попробуйте завтра или добавьте продукт вручную.',
   ai_requests_left: 'запросов',
+  ai_photo_sent: 'Фото отправлено',
+  ai_photo_permission: 'Нет доступа к камере/галерее',
 
   // Import
   analytics_import: 'Импорт данных',

@@ -5,7 +5,6 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -23,12 +22,14 @@ import { useI18n } from '../i18n';
 import { useFoods } from '../hooks/useFoods';
 import { useMeals } from '../hooks/useMeals';
 import { useRecipes, recipeToFoodItem, recipeServingGrams } from '../hooks/useRecipes';
-import { analyzeFoodText, aiAnalysisToFoodItem, hasAIKey, type AIFoodAnalysis } from '../services/aiNutrition';
+import * as ImagePicker from 'expo-image-picker';
+import { analyzeFoodText, analyzeFoodImage, aiAnalysisToFoodItem, hasAIKey, type AIFoodAnalysis } from '../services/aiNutrition';
 import { calculateNutrition, calculateDailyTarget } from '../utils/nutrition';
 import { DAILY_MICRO_TARGETS } from '../constants/nutrition';
 import { useProfile } from '../hooks/useProfile';
 import type { FoodItem, MealEntry } from '../types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import AIThinkingAnimation from '../components/AIThinkingAnimation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -131,6 +132,101 @@ export default function AddMealScreen() {
       scrollToEnd();
     }
   }, [input, isThinking, remaining, lang, t, scrollToEnd, incrementUsage]);
+
+  const handlePhoto = useCallback(async () => {
+    if (isThinking) return;
+
+    if (remaining <= 0) {
+      Alert.alert(t('ai_limit_title'), t('ai_limit_msg'));
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(t('error'), t('ai_photo_permission'));
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.5,
+      base64: true,
+      allowsEditing: true,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+
+    Haptics.selectionAsync();
+    setMessages((prev) => [...prev, { id: uid(), type: 'user', text: '📷 ' + t('ai_photo_sent') }]);
+    setIsThinking(true);
+    scrollToEnd();
+
+    try {
+      if (!hasAIKey()) throw new Error(t('ai_no_key'));
+      const analysis = await analyzeFoodImage(result.assets[0].base64, lang);
+      const food = aiAnalysisToFoodItem(analysis);
+      setMessages((prev) => [...prev, {
+        id: uid(), type: 'ai', food, analysis,
+        grams: Math.round(analysis.totalGrams),
+      }]);
+      await incrementUsage();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      setMessages((prev) => [...prev, { id: uid(), type: 'error', text: msg }]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsThinking(false);
+      scrollToEnd();
+    }
+  }, [isThinking, remaining, lang, t, scrollToEnd, incrementUsage]);
+
+  const handleCamera = useCallback(async () => {
+    if (isThinking) return;
+
+    if (remaining <= 0) {
+      Alert.alert(t('ai_limit_title'), t('ai_limit_msg'));
+      return;
+    }
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(t('error'), t('ai_photo_permission'));
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.5,
+      base64: true,
+      allowsEditing: true,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+
+    Haptics.selectionAsync();
+    setMessages((prev) => [...prev, { id: uid(), type: 'user', text: '📷 ' + t('ai_photo_sent') }]);
+    setIsThinking(true);
+    scrollToEnd();
+
+    try {
+      if (!hasAIKey()) throw new Error(t('ai_no_key'));
+      const analysis = await analyzeFoodImage(result.assets[0].base64, lang);
+      const food = aiAnalysisToFoodItem(analysis);
+      setMessages((prev) => [...prev, {
+        id: uid(), type: 'ai', food, analysis,
+        grams: Math.round(analysis.totalGrams),
+      }]);
+      await incrementUsage();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      setMessages((prev) => [...prev, { id: uid(), type: 'error', text: msg }]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsThinking(false);
+      scrollToEnd();
+    }
+  }, [isThinking, remaining, lang, t, scrollToEnd, incrementUsage]);
 
   const updateGrams = useCallback((msgId: string, newGrams: number) => {
     setMessages((prev) => prev.map((m) =>
@@ -309,46 +405,48 @@ export default function AddMealScreen() {
 
     return (
       <View style={styles.browseWrap}>
+        {/* Compact welcome */}
         <View style={[styles.welcomeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="sparkles" size={22} color={colors.primary} />
+          <Ionicons name="sparkles" size={20} color={colors.primary} />
           <Text style={[styles.welcomeTitle, { color: colors.text }]}>{t('ai_welcome_title')}</Text>
-          <Text style={[styles.welcomeDesc, { color: colors.textSecondary }]}>{t('ai_welcome_desc')}</Text>
 
-          <View style={styles.examplesWrap}>
-            {[t('ai_example_1'), t('ai_example_2'), t('ai_example_3')].map((ex) => (
+          {/* Horizontal example chips */}
+          <View style={styles.examplesRow}>
+            {[t('ai_example_1'), t('ai_example_2')].map((ex) => (
               <TouchableOpacity
                 key={ex}
                 style={[styles.exampleChip, { borderColor: colors.border }]}
                 onPress={() => setInput(ex)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.exampleText, { color: colors.textSecondary }]}>{ex}</Text>
+                <Text style={[styles.exampleText, { color: colors.textSecondary }]} numberOfLines={1}>{ex}</Text>
               </TouchableOpacity>
             ))}
           </View>
+        </View>
 
-          <View style={styles.welcomeActions}>
-            <TouchableOpacity
-              style={[styles.welcomeBtn, { borderColor: colors.border }]}
-              onPress={() => navigation.navigate('BarcodeScanner')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="barcode-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.welcomeBtnText, { color: colors.textSecondary }]}>{t('add_meal_barcode')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.welcomeBtn, { borderColor: colors.border }]}
-              onPress={() => navigation.navigate('AddCustomFood', {})}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.welcomeBtnText, { color: colors.textSecondary }]}>{t('add_meal_manual')}</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Quick actions row */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={[styles.quickBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('BarcodeScanner')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="barcode-outline" size={20} color={colors.primary} />
+            <Text style={[styles.quickBtnText, { color: colors.text }]}>{t('add_meal_barcode')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('Recipes')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="book-outline" size={20} color={colors.primary} />
+            <Text style={[styles.quickBtnText, { color: colors.text }]}>{t('recipe_select')}</Text>
+          </TouchableOpacity>
         </View>
 
         {sections.map((section) => (
-          <View key={section.title} style={{ marginTop: SPACING.md }}>
+          <View key={section.title} style={{ marginTop: SPACING.sm }}>
             <Text style={[styles.sectionHeader, { color: colors.text }]}>{section.title}</Text>
             {section.data.map((item) => (
               <TouchableOpacity
@@ -398,16 +496,27 @@ export default function AddMealScreen() {
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
       />
 
-      {isThinking && (
-        <View style={styles.thinkingRow}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={[styles.thinkingText, { color: colors.textSecondary }]}>{t('ai_thinking')}</Text>
-        </View>
-      )}
+      {isThinking && <AIThinkingAnimation />}
 
       {/* Input bar + counter */}
       <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
         <View style={styles.inputRow}>
+          <TouchableOpacity
+            style={[styles.photoBtn, { borderColor: colors.border }]}
+            onPress={handleCamera}
+            disabled={isThinking || remaining <= 0}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="camera-outline" size={20} color={!isThinking && remaining > 0 ? colors.textSecondary : colors.border} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.photoBtn, { borderColor: colors.border }]}
+            onPress={handlePhoto}
+            disabled={isThinking || remaining <= 0}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="image-outline" size={20} color={!isThinking && remaining > 0 ? colors.textSecondary : colors.border} />
+          </TouchableOpacity>
           <View style={[styles.inputWrap, { backgroundColor: tint(colors.text, 0.04), borderColor: colors.border }]}>
             <TextInput
               style={[styles.textInput, { color: colors.text }]}
@@ -447,22 +556,21 @@ const styles = StyleSheet.create({
   // Browse
   browseWrap: { gap: SPACING.xs },
   welcomeCard: {
-    borderRadius: 16, borderWidth: 1, padding: SPACING.lg, alignItems: 'center',
+    borderRadius: 16, borderWidth: 1, padding: SPACING.md, alignItems: 'center',
   },
-  welcomeTitle: { fontSize: FONT_SIZE.md, fontWeight: '700', marginTop: SPACING.sm, textAlign: 'center' },
-  welcomeDesc: { fontSize: FONT_SIZE.xs, marginTop: 4, textAlign: 'center', lineHeight: 18 },
-  examplesWrap: { width: '100%', marginTop: SPACING.md, gap: 6 },
+  welcomeTitle: { fontSize: FONT_SIZE.sm, fontWeight: '600', marginTop: SPACING.xs, textAlign: 'center' },
+  examplesRow: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.sm, width: '100%' },
   exampleChip: {
-    paddingVertical: 8, paddingHorizontal: SPACING.sm, borderRadius: 10, borderWidth: 1,
+    flex: 1, paddingVertical: 6, paddingHorizontal: SPACING.xs, borderRadius: 8, borderWidth: 1, alignItems: 'center',
   },
-  exampleText: { fontSize: FONT_SIZE.xs },
-  welcomeActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md, width: '100%' },
-  welcomeBtn: {
+  exampleText: { fontSize: 11 },
+  quickActions: { flexDirection: 'row', gap: SPACING.xs },
+  quickBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 4, paddingVertical: 8, borderRadius: 10, borderWidth: 1,
+    gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
   },
-  welcomeBtnText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
-  sectionHeader: { fontSize: FONT_SIZE.xs, fontWeight: '700', marginBottom: 4, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  quickBtnText: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
+  sectionHeader: { fontSize: FONT_SIZE.xs, fontWeight: '700', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   foodCard: {
     flexDirection: 'row', alignItems: 'center',
     borderRadius: 10, borderWidth: 1, padding: SPACING.sm, marginBottom: 4,
@@ -556,13 +664,6 @@ const styles = StyleSheet.create({
     height: '100%', borderRadius: 2,
   },
 
-  // Thinking
-  thinkingRow: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
-    paddingHorizontal: SPACING.md, paddingVertical: 4,
-  },
-  thinkingText: { fontSize: FONT_SIZE.xs },
-
   // Input bar
   inputBar: {
     paddingHorizontal: SPACING.sm, paddingTop: SPACING.xs, borderTopWidth: 1,
@@ -578,6 +679,11 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     paddingTop: Platform.OS === 'ios' ? 10 : 8,
     paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+  },
+  photoBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
   },
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,

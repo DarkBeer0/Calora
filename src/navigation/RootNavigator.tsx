@@ -27,13 +27,13 @@ export type RootStackParamList = {
   BarcodeScanner: undefined;
   AddCustomFood: { barcode?: string } | undefined;
   AddRecipe: { editRecipe?: Recipe } | undefined;
+  Analytics: undefined;
+  Recipes: undefined;
 };
 
 export type TabParamList = {
   Dashboard: undefined;
   History: undefined;
-  Recipes: undefined;
-  Analytics: undefined;
   Profile: undefined;
 };
 
@@ -78,26 +78,6 @@ function TabNavigator() {
           tabBarLabel: t('tab_history'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Recipes"
-        component={RecipesScreen}
-        options={{
-          tabBarLabel: t('recipe_select'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Analytics"
-        component={AnalyticsScreen}
-        options={{
-          tabBarLabel: t('tab_analytics'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart" size={size} color={color} />
           ),
         }}
       />
@@ -148,6 +128,8 @@ export default function RootNavigator() {
         <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ title: t('scanner_title'), animation: 'fade', headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff' }} />
         <Stack.Screen name="AddCustomFood" component={AddCustomFoodScreen} options={{ title: t('custom_food_title'), presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ title: t('recipe_new'), presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: t('tab_analytics'), presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="Recipes" component={RecipesScreen} options={{ title: t('recipe_select'), presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -246,6 +246,8 @@ export const en: Record<TranslationKey, string> = {
   ai_limit_title: 'Request limit',
   ai_limit_msg: 'You have used all AI requests for today. Try again tomorrow or add a product manually.',
   ai_requests_left: 'requests',
+  ai_photo_sent: 'Photo sent',
+  ai_photo_permission: 'No access to camera/gallery',
 
   analytics_import: 'Import data',
   analytics_import_success: 'Data restored',

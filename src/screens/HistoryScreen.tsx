@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -36,6 +36,13 @@ export default function HistoryScreen() {
   const { datesWithMeals, getDailySummary, deleteMeal, copyMealsToToday, isLoading, refresh } = useMeals();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Refresh data when screen gets focus (e.g. after adding meal)
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -89,7 +96,25 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>{t('history_title')}</Text>
+      <View style={styles.headerRow}>
+        <Text style={[styles.title, { color: colors.text }]}>{t('history_title')}</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.headerBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('Recipes')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="book-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('Analytics')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="stats-chart-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
       <FlatList
         data={datesWithMeals}
         keyExtractor={(item) => item}
@@ -172,7 +197,10 @@ function groupByMealType(summary: DailySummary) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, paddingHorizontal: SPACING.lg, marginBottom: SPACING.md },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md },
+  headerActions: { flexDirection: 'row', gap: SPACING.xs },
+  headerBtn: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   list: { paddingHorizontal: SPACING.lg, paddingBottom: 40 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
   loadingText: { fontSize: FONT_SIZE.md },
