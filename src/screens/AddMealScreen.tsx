@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -72,6 +73,7 @@ export default function AddMealScreen() {
   const [isThinking, setIsThinking] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: 'browse', type: 'browse' }]);
   const [usedToday, setUsedToday] = useState(0);
+  const [pendingImage, setPendingImage] = useState<{ uri: string; base64: string } | null>(null);
   const listRef = useRef<FlatList>(null);
 
   // Load daily usage
@@ -98,24 +100,40 @@ export default function AddMealScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
 
+  const canSend = (!!(input.trim()) || !!pendingImage) && !isThinking && remaining > 0;
+
   const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text || isThinking) return;
+    const image = pendingImage;
+    if ((!text && !image) || isThinking) return;
 
     if (remaining <= 0) {
       Alert.alert(t('ai_limit_title'), t('ai_limit_msg'));
       return;
     }
 
+    // Build bubble text
+    const bubbleText = image
+      ? (text ? `📷 ${text}` : `📷 ${t('ai_photo_sent')}`)
+      : text;
+
     Haptics.selectionAsync();
-    setMessages((prev) => [...prev, { id: uid(), type: 'user', text }]);
+    setMessages((prev) => [...prev, { id: uid(), type: 'user', text: bubbleText }]);
     setInput('');
+    setPendingImage(null);
     setIsThinking(true);
     scrollToEnd();
 
     try {
       if (!hasAIKey()) throw new Error(t('ai_no_key'));
-      const analysis = await analyzeFoodText(text, lang);
+
+      let analysis;
+      if (image) {
+        analysis = await analyzeFoodImage(image.base64, lang, text || undefined);
+      } else {
+        analysis = await analyzeFoodText(text, lang);
+      }
+
       const food = aiAnalysisToFoodItem(analysis);
       setMessages((prev) => [...prev, {
         id: uid(), type: 'ai', food, analysis,
@@ -131,15 +149,10 @@ export default function AddMealScreen() {
       setIsThinking(false);
       scrollToEnd();
     }
-  }, [input, isThinking, remaining, lang, t, scrollToEnd, incrementUsage]);
+  }, [input, pendingImage, isThinking, remaining, lang, t, scrollToEnd, incrementUsage]);
 
   const handlePhoto = useCallback(async () => {
     if (isThinking) return;
-
-    if (remaining <= 0) {
-      Alert.alert(t('ai_limit_title'), t('ai_limit_msg'));
-      return;
-    }
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -154,40 +167,13 @@ export default function AddMealScreen() {
       allowsEditing: true,
     });
 
-    if (result.canceled || !result.assets?.[0]?.base64) return;
-
-    Haptics.selectionAsync();
-    setMessages((prev) => [...prev, { id: uid(), type: 'user', text: '📷 ' + t('ai_photo_sent') }]);
-    setIsThinking(true);
-    scrollToEnd();
-
-    try {
-      if (!hasAIKey()) throw new Error(t('ai_no_key'));
-      const analysis = await analyzeFoodImage(result.assets[0].base64, lang);
-      const food = aiAnalysisToFoodItem(analysis);
-      setMessages((prev) => [...prev, {
-        id: uid(), type: 'ai', food, analysis,
-        grams: Math.round(analysis.totalGrams),
-      }]);
-      await incrementUsage();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      const msg = String(e?.message || e);
-      setMessages((prev) => [...prev, { id: uid(), type: 'error', text: msg }]);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setIsThinking(false);
-      scrollToEnd();
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      setPendingImage({ uri: result.assets[0].uri, base64: result.assets[0].base64 });
     }
-  }, [isThinking, remaining, lang, t, scrollToEnd, incrementUsage]);
+  }, [isThinking, t]);
 
   const handleCamera = useCallback(async () => {
     if (isThinking) return;
-
-    if (remaining <= 0) {
-      Alert.alert(t('ai_limit_title'), t('ai_limit_msg'));
-      return;
-    }
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -201,32 +187,10 @@ export default function AddMealScreen() {
       allowsEditing: true,
     });
 
-    if (result.canceled || !result.assets?.[0]?.base64) return;
-
-    Haptics.selectionAsync();
-    setMessages((prev) => [...prev, { id: uid(), type: 'user', text: '📷 ' + t('ai_photo_sent') }]);
-    setIsThinking(true);
-    scrollToEnd();
-
-    try {
-      if (!hasAIKey()) throw new Error(t('ai_no_key'));
-      const analysis = await analyzeFoodImage(result.assets[0].base64, lang);
-      const food = aiAnalysisToFoodItem(analysis);
-      setMessages((prev) => [...prev, {
-        id: uid(), type: 'ai', food, analysis,
-        grams: Math.round(analysis.totalGrams),
-      }]);
-      await incrementUsage();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      const msg = String(e?.message || e);
-      setMessages((prev) => [...prev, { id: uid(), type: 'error', text: msg }]);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setIsThinking(false);
-      scrollToEnd();
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      setPendingImage({ uri: result.assets[0].uri, base64: result.assets[0].base64 });
     }
-  }, [isThinking, remaining, lang, t, scrollToEnd, incrementUsage]);
+  }, [isThinking, t]);
 
   const updateGrams = useCallback((msgId: string, newGrams: number) => {
     setMessages((prev) => prev.map((m) =>
@@ -500,27 +464,40 @@ export default function AddMealScreen() {
 
       {/* Input bar + counter */}
       <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
+        {/* Pending image preview */}
+        {pendingImage && (
+          <View style={styles.previewRow}>
+            <Image source={{ uri: pendingImage.uri }} style={styles.previewThumb} />
+            <Text style={[styles.previewText, { color: colors.textSecondary }]} numberOfLines={1}>
+              {t('ai_photo_sent')}
+            </Text>
+            <TouchableOpacity onPress={() => setPendingImage(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.inputRow}>
           <TouchableOpacity
             style={[styles.photoBtn, { borderColor: colors.border }]}
             onPress={handleCamera}
-            disabled={isThinking || remaining <= 0}
+            disabled={isThinking}
             activeOpacity={0.7}
           >
-            <Ionicons name="camera-outline" size={20} color={!isThinking && remaining > 0 ? colors.textSecondary : colors.border} />
+            <Ionicons name="camera-outline" size={20} color={!isThinking ? colors.textSecondary : colors.border} />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.photoBtn, { borderColor: colors.border }]}
             onPress={handlePhoto}
-            disabled={isThinking || remaining <= 0}
+            disabled={isThinking}
             activeOpacity={0.7}
           >
-            <Ionicons name="image-outline" size={20} color={!isThinking && remaining > 0 ? colors.textSecondary : colors.border} />
+            <Ionicons name="image-outline" size={20} color={!isThinking ? colors.textSecondary : colors.border} />
           </TouchableOpacity>
           <View style={[styles.inputWrap, { backgroundColor: tint(colors.text, 0.04), borderColor: colors.border }]}>
             <TextInput
               style={[styles.textInput, { color: colors.text }]}
-              placeholder={t('ai_chat_placeholder')}
+              placeholder={pendingImage ? t('ai_photo_hint') : t('ai_chat_placeholder')}
               placeholderTextColor={colors.textSecondary}
               value={input}
               onChangeText={setInput}
@@ -533,9 +510,9 @@ export default function AddMealScreen() {
             />
           </View>
           <TouchableOpacity
-            style={[styles.sendBtn, { backgroundColor: input.trim() && !isThinking && remaining > 0 ? colors.primary : colors.border }]}
+            style={[styles.sendBtn, { backgroundColor: canSend ? colors.primary : colors.border }]}
             onPress={handleSend}
-            disabled={!input.trim() || isThinking || remaining <= 0}
+            disabled={!canSend}
             activeOpacity={0.8}
           >
             <Ionicons name="arrow-up" size={18} color="#fff" />
@@ -662,6 +639,18 @@ const styles = StyleSheet.create({
   },
   addedMiniBarFill: {
     height: '100%', borderRadius: 2,
+  },
+
+  // Image preview
+  previewRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xs,
+  },
+  previewThumb: {
+    width: 40, height: 40, borderRadius: 8,
+  },
+  previewText: {
+    flex: 1, fontSize: FONT_SIZE.xs,
   },
 
   // Input bar

@@ -26,7 +26,8 @@ export interface AIFoodAnalysis {
 
 export async function analyzeFoodImage(
   imageBase64: string,
-  lang: string = 'ru'
+  lang: string = 'ru',
+  text?: string,
 ): Promise<AIFoodAnalysis> {
   if (!PROXY_URL) {
     throw new Error('AI proxy URL is not configured');
@@ -37,10 +38,13 @@ export async function analyzeFoodImage(
   };
   if (APP_SECRET) headers['x-app-secret'] = APP_SECRET;
 
+  const payload: Record<string, string> = { image: imageBase64, lang };
+  if (text?.trim()) payload.text = text.trim();
+
   const response = await fetch(PROXY_URL, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ image: imageBase64, lang }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
