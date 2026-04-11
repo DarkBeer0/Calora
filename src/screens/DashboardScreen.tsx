@@ -18,7 +18,9 @@ import CalorieSummaryCard from '../components/CalorieSummaryCard';
 import MiniRing from '../components/MiniRing';
 import ExerciseCard from '../components/ExerciseCard';
 import WaterWidget from '../components/WaterWidget';
+import StreakWidget from '../components/StreakWidget';
 import SkeletonDashboard from '../components/SkeletonDashboard';
+import { useStreak } from '../hooks/useStreak';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -32,6 +34,7 @@ export default function DashboardScreen() {
   const { todaySummary, isLoading: mealsLoading, refresh: refreshMeals } = useMeals();
   const { todayExercises, todayBurned, deleteExercise, isLoading: exLoading, refresh: refreshExercises } = useExercises();
   const { todayTotal: waterTotal, addWater, removeLastEntry: undoWater, isLoading: waterLoading, refresh: refreshWater } = useWater();
+  const { streak, refresh: refreshStreak } = useStreak();
 
   const [refreshing, setRefreshing] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
@@ -51,7 +54,8 @@ export default function DashboardScreen() {
       refreshMeals();
       refreshExercises();
       refreshWater();
-    }, [refreshMeals, refreshExercises, refreshWater])
+      refreshStreak();
+    }, [refreshMeals, refreshExercises, refreshWater, refreshStreak])
   );
 
   useEffect(() => {
@@ -66,9 +70,9 @@ export default function DashboardScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refreshMeals(), refreshExercises(), refreshWater()]);
+    await Promise.all([refreshMeals(), refreshExercises(), refreshWater(), refreshStreak()]);
     setRefreshing(false);
-  }, [refreshMeals, refreshExercises, refreshWater]);
+  }, [refreshMeals, refreshExercises, refreshWater, refreshStreak]);
 
   const toggleFab = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -130,6 +134,9 @@ export default function DashboardScreen() {
         <Text style={[styles.dateText, { color: colors.textSecondary }]}>
           {new Date().toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' })}
         </Text>
+
+        {/* Streak */}
+        <StreakWidget current={streak.current} best={streak.best} />
 
         {/* Calorie summary */}
         <Animated.View style={{ opacity: fadeCalorie, transform: [{ translateY: fadeCalorie.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>

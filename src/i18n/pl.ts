@@ -131,6 +131,10 @@ export const pl: Record<TranslationKey, string> = {
   profile_daily_norm: 'Twoja dzienna norma',
   profile_saved: 'Profil zapisany',
   profile_error_fields: 'Wypełnij wszystkie pola liczbowe',
+  profile_error_age: 'Wiek musi wynosić od 10 do 120 lat',
+  profile_error_weight: 'Waga musi wynosić od 20 do 350 kg',
+  profile_error_height: 'Wzrost musi wynosić od 80 do 250 cm',
+  profile_error_water: 'Cel nawodnienia musi wynosić od 500 do 10000 ml',
 
   activity_sedentary: 'Siedzący tryb życia',
   activity_light: 'Lekka aktywność (1-3 dni/tydz.)',
@@ -269,4 +273,8 @@ export const pl: Record<TranslationKey, string> = {
   feedback_sent: 'Dziękujemy! Twoja wiadomość została wysłana.',
   feedback_error: 'Nie udało się wysłać wiadomości. Spróbuj później.',
   feedback_btn: 'Kontakt',
+
+  // Streak
+  streak_days: 'dni z rzędu',
+  streak_best: 'rekord',
 };

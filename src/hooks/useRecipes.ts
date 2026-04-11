@@ -5,6 +5,9 @@ import type { Recipe, RecipeIngredient, FoodItem } from '../types';
 const STORAGE_KEY = 'calora_recipes';
 
 /** Compute totals from ingredients list */
+/** Round to 1 decimal place to avoid float drift */
+const r1 = (v: number) => Math.round(v * 10) / 10;
+
 export function computeRecipeNutrition(ingredients: RecipeIngredient[]) {
   let totalCalories = 0, totalProtein = 0, totalFat = 0, totalCarbs = 0;
   let totalFiber = 0, totalSugars = 0, totalSaturatedFat = 0, totalSalt = 0;
@@ -21,7 +24,16 @@ export function computeRecipeNutrition(ingredients: RecipeIngredient[]) {
     totalSalt += foodItem.saltPer100g * m;
   }
 
-  return { totalCalories, totalProtein, totalFat, totalCarbs, totalFiber, totalSugars, totalSaturatedFat, totalSalt };
+  return {
+    totalCalories: Math.round(totalCalories),
+    totalProtein: r1(totalProtein),
+    totalFat: r1(totalFat),
+    totalCarbs: r1(totalCarbs),
+    totalFiber: r1(totalFiber),
+    totalSugars: r1(totalSugars),
+    totalSaturatedFat: r1(totalSaturatedFat),
+    totalSalt: r1(totalSalt),
+  };
 }
 
 /** Total weight of all ingredients in grams */

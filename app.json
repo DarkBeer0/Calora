@@ -52,6 +52,24 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "CaloriesWidget",
+              "label": "Calora — Калории",
+              "minWidth": "250dp",
+              "minHeight": "80dp",
+              "description": "Остаток калорий на сегодня",
+              "previewImage": "./assets/icon.png",
+              "resizeMode": "horizontal|vertical",
+              "widgetFeatures": "reconfigurable",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
       ]
     ],
     "extra": {

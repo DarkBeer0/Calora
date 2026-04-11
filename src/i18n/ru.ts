@@ -140,6 +140,10 @@ export const ru = {
   profile_daily_norm: 'Ваша дневная норма',
   profile_saved: 'Профиль сохранён',
   profile_error_fields: 'Заполните все числовые поля',
+  profile_error_age: 'Возраст должен быть от 10 до 120 лет',
+  profile_error_weight: 'Вес должен быть от 20 до 350 кг',
+  profile_error_height: 'Рост должен быть от 80 до 250 см',
+  profile_error_water: 'Цель воды должна быть от 500 до 10000 мл',
 
   // Activity levels
   activity_sedentary: 'Сидячий образ жизни',
@@ -290,6 +294,10 @@ export const ru = {
   feedback_sent: 'Спасибо! Ваше сообщение отправлено.',
   feedback_error: 'Не удалось отправить сообщение. Попробуйте позже.',
   feedback_btn: 'Обратная связь',
+
+  // Streak
+  streak_days: 'дней подряд',
+  streak_best: 'рекорд',
 } as const;
 
 export type TranslationKey = keyof typeof ru;

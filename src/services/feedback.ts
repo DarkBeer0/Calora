@@ -17,11 +17,20 @@ export async function sendFeedback(data: FeedbackData): Promise<void> {
   };
   if (APP_SECRET) headers['x-app-secret'] = APP_SECRET;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');

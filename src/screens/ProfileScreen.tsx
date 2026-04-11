@@ -85,8 +85,29 @@ export default function ProfileScreen() {
   }, [currentProfile]);
 
   const handleSave = () => {
-    if (!currentProfile.age || !currentProfile.weight || !currentProfile.height) {
+    const a = currentProfile.age;
+    const w = currentProfile.weight;
+    const h = currentProfile.height;
+    const wg = currentProfile.waterGoal;
+
+    if (!a || !w || !h) {
       Alert.alert(t('error'), t('profile_error_fields'));
+      return;
+    }
+    if (a < 10 || a > 120) {
+      Alert.alert(t('error'), t('profile_error_age'));
+      return;
+    }
+    if (w < 20 || w > 350) {
+      Alert.alert(t('error'), t('profile_error_weight'));
+      return;
+    }
+    if (h < 80 || h > 250) {
+      Alert.alert(t('error'), t('profile_error_height'));
+      return;
+    }
+    if (!wg || wg < 500 || wg > 10000) {
+      Alert.alert(t('error'), t('profile_error_water'));
       return;
     }
     saveProfile(currentProfile);

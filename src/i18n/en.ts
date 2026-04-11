@@ -131,6 +131,10 @@ export const en: Record<TranslationKey, string> = {
   profile_daily_norm: 'Your daily target',
   profile_saved: 'Profile saved',
   profile_error_fields: 'Fill in all numeric fields',
+  profile_error_age: 'Age must be between 10 and 120',
+  profile_error_weight: 'Weight must be between 20 and 350 kg',
+  profile_error_height: 'Height must be between 80 and 250 cm',
+  profile_error_water: 'Water goal must be between 500 and 10000 ml',
 
   activity_sedentary: 'Sedentary',
   activity_light: 'Light activity (1-3 days/wk)',
@@ -269,4 +273,8 @@ export const en: Record<TranslationKey, string> = {
   feedback_sent: 'Thank you! Your message has been sent.',
   feedback_error: 'Failed to send message. Please try later.',
   feedback_btn: 'Feedback',
+
+  // Streak
+  streak_days: 'day streak',
+  streak_best: 'best',
 };
