@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
 import { sendFeedback } from '../services/feedback';
+import CustomAlert from '../components/CustomAlert';
 
 export default function FeedbackScreen() {
   const { colors, tint } = useTheme();
@@ -28,6 +28,7 @@ export default function FeedbackScreen() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [alertState, setAlertState] = useState<{ visible: boolean; title: string; message: string; icon: 'checkmark-circle' | 'alert-circle'; goBack?: boolean }>({ visible: false, title: '', message: '', icon: 'checkmark-circle' });
 
   const canSend = message.trim().length > 0 && !sending;
 
@@ -42,12 +43,10 @@ export default function FeedbackScreen() {
         email: email.trim() || undefined,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t('done'), t('feedback_sent'), [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      setAlertState({ visible: true, title: t('done'), message: t('feedback_sent'), icon: 'checkmark-circle', goBack: true });
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('error'), t('feedback_error'));
+      setAlertState({ visible: true, title: t('error'), message: t('feedback_error'), icon: 'alert-circle' });
     } finally {
       setSending(false);
     }
@@ -141,6 +140,17 @@ export default function FeedbackScreen() {
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
+
+        <CustomAlert
+          visible={alertState.visible}
+          title={alertState.title}
+          message={alertState.message}
+          icon={alertState.icon}
+          onDismiss={() => {
+            setAlertState((s) => ({ ...s, visible: false }));
+            if (alertState.goBack) navigation.goBack();
+          }}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

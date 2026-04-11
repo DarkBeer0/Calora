@@ -6,10 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import CustomAlert from '../components/CustomAlert';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZE } from '../constants/theme';
@@ -53,6 +53,17 @@ export default function ProfileScreen() {
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [goal, setGoal] = useState<Goal>('maintain');
   const [notifExpanded, setNotifExpanded] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertIcon, setAlertIcon] = useState<'checkmark-circle' | 'alert-circle'>('checkmark-circle');
+
+  const showAlert = (title: string, msg: string, icon: 'checkmark-circle' | 'alert-circle' = 'checkmark-circle') => {
+    setAlertTitle(title);
+    setAlertMessage(msg);
+    setAlertIcon(icon);
+    setAlertVisible(true);
+  };
 
   useEffect(() => {
     if (!isLoading) {
@@ -91,28 +102,28 @@ export default function ProfileScreen() {
     const wg = currentProfile.waterGoal;
 
     if (!a || !w || !h) {
-      Alert.alert(t('error'), t('profile_error_fields'));
+      showAlert(t('error'), t('profile_error_fields'), 'alert-circle');
       return;
     }
     if (a < 10 || a > 120) {
-      Alert.alert(t('error'), t('profile_error_age'));
+      showAlert(t('error'), t('profile_error_age'), 'alert-circle');
       return;
     }
     if (w < 20 || w > 350) {
-      Alert.alert(t('error'), t('profile_error_weight'));
+      showAlert(t('error'), t('profile_error_weight'), 'alert-circle');
       return;
     }
     if (h < 80 || h > 250) {
-      Alert.alert(t('error'), t('profile_error_height'));
+      showAlert(t('error'), t('profile_error_height'), 'alert-circle');
       return;
     }
     if (!wg || wg < 500 || wg > 10000) {
-      Alert.alert(t('error'), t('profile_error_water'));
+      showAlert(t('error'), t('profile_error_water'), 'alert-circle');
       return;
     }
     saveProfile(currentProfile);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(t('done'), t('profile_saved'));
+    showAlert(t('done'), t('profile_saved'));
   };
 
   if (isLoading) {
@@ -218,8 +229,8 @@ export default function ProfileScreen() {
                 style={[styles.goalBtn, { backgroundColor: active ? colors.primary : tint(colors.text, 0.04) }]}
                 onPress={() => setGoal(key)}
               >
-                <Ionicons name={GOAL_ICONS[key] as any} size={16} color={active ? '#fff' : colors.textSecondary} />
-                <Text style={[styles.goalText, { color: active ? '#fff' : colors.text }]}>
+                <Ionicons name={GOAL_ICONS[key] as any} size={18} color={active ? '#fff' : colors.textSecondary} />
+                <Text style={[styles.goalText, { color: active ? '#fff' : colors.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                   {t(GOAL_I18N[key] as any)}
                 </Text>
               </TouchableOpacity>
@@ -318,6 +329,14 @@ export default function ProfileScreen() {
       </TouchableOpacity>
 
       <View style={{ height: 20 }} />
+
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        icon={alertIcon}
+        onDismiss={() => setAlertVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -408,12 +427,12 @@ const styles = StyleSheet.create({
   activityText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
 
   // Goal
-  goalRow: { flexDirection: 'row', gap: SPACING.sm },
+  goalRow: { flexDirection: 'row', gap: SPACING.xs },
   goalBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 4, paddingVertical: 10, borderRadius: 10,
+    flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    gap: 2, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 10,
   },
-  goalText: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
+  goalText: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
   // Preferences
   prefRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
