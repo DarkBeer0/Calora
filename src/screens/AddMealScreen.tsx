@@ -463,7 +463,7 @@ export default function AddMealScreen() {
       {isThinking && <AIThinkingAnimation />}
 
       {/* Input bar + counter */}
-      <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
+      <View style={[styles.inputBar, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
         {/* Pending image preview */}
         {pendingImage && (
           <View style={styles.previewRow}>
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
 
   // Input bar
   inputBar: {
-    paddingHorizontal: SPACING.sm, paddingTop: SPACING.xs, borderTopWidth: 1,
+    paddingHorizontal: SPACING.sm, paddingTop: SPACING.xs,
   },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.xs,

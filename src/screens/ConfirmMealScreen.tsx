@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -45,6 +46,7 @@ export default function ConfirmMealScreen() {
   const { profile } = useProfile();
   const { colors } = useTheme();
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
 
   const isEditing = !!editMeal;
   const [grams, setGrams] = useState(
@@ -118,7 +120,7 @@ export default function ConfirmMealScreen() {
   const consumedCaloriePct = target.calories > 0 ? Math.min(consumed.calories / target.calories, 1) : 0;
 
   return (
-    <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.container}>
+    <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={[styles.container, { paddingBottom: Math.max(40, insets.bottom + 16) }]}>
       {/* Food name + favorite */}
       <View style={styles.foodHeader}>
         <View style={{ flex: 1 }}>
@@ -203,7 +205,7 @@ export default function ConfirmMealScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  container: { padding: SPACING.lg, paddingBottom: 40 },
+  container: { padding: SPACING.lg },
   foodHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: SPACING.lg },
   foodName: { fontSize: FONT_SIZE.xl, fontWeight: 'bold' },
   foodSub: { fontSize: FONT_SIZE.sm, marginTop: 2 },
