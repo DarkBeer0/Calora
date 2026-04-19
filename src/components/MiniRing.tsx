@@ -16,6 +16,7 @@ interface MiniRingProps {
   label: string;
   unit?: string;
   moreLabel?: string;
+  overLabel?: string;
 }
 
 export default function MiniRing({
@@ -28,12 +29,16 @@ export default function MiniRing({
   label,
   unit = 'g',
   moreLabel = '',
+  overLabel = '',
 }: MiniRingProps) {
   const { colors } = useTheme();
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.min(Math.max(progress, 0), 1);
-  const remaining = Math.max(target - current, 0);
+  const isOver = target > 0 && current > target;
+  const overBy = isOver ? current - target : 0;
+  const remaining = isOver ? 0 : Math.max(target - current, 0);
+  const ringColor = isOver ? colors.warning : color;
 
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -58,7 +63,7 @@ export default function MiniRing({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={color}
+            stroke={ringColor}
             strokeWidth={strokeWidth}
             fill="none"
             opacity={0.12}
@@ -67,7 +72,7 @@ export default function MiniRing({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={color}
+            stroke={ringColor}
             strokeWidth={strokeWidth}
             fill="none"
             strokeDasharray={circumference}
@@ -77,11 +82,14 @@ export default function MiniRing({
             origin={`${size / 2}, ${size / 2}`}
           />
         </Svg>
-        <Text style={[styles.ringValue, { color }]}>{current}</Text>
+        <Text style={[styles.ringValue, { color: ringColor }]}>{current}</Text>
       </View>
       <Text style={[styles.label, { color: colors.textSecondary }]} numberOfLines={1}>{label}</Text>
-      <Text style={[styles.remaining, { color: colors.border }]} numberOfLines={1}>
-        {moreLabel} {remaining}{unit}
+      <Text
+        style={[styles.remaining, { color: isOver ? colors.warning : colors.border }]}
+        numberOfLines={1}
+      >
+        {isOver ? `+${overBy}${unit} ${overLabel}` : `${moreLabel} ${remaining}${unit}`}
       </Text>
     </View>
   );

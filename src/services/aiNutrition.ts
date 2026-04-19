@@ -89,11 +89,6 @@ async function aiRequest(body: Record<string, string>): Promise<AIFoodAnalysis> 
         throw new Error('AI did not return structured data');
       }
 
-      if (__DEV__) {
-        console.log('[AI] request:', body);
-        console.log('[AI] response:', JSON.stringify(data.analysis, null, 2));
-      }
-
       return data.analysis as AIFoodAnalysis;
     } catch (e: any) {
       // AbortError = timeout

@@ -9,11 +9,11 @@ export const DARK_COLORS = {
   primary: '#66BB6A',
   primaryLight: '#81C784',
   primaryDark: '#388E3C',
-  background: '#121212',
-  surface: '#1E1E1E',
+  background: '#0D1210',    // slight green-black — warmer than pure #121212
+  surface: '#191E1B',       // green-tinted surface
   text: '#E0E0E0',
   textSecondary: '#9E9E9E',
-  border: '#333333',
+  border: '#2B322D',        // subtle green-tinted border
 
   // Semantic actions
   error: '#EF5350',

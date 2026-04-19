@@ -297,10 +297,25 @@ export default function AddMealScreen() {
       );
     }
 
+    const confidence = analysis.confidence;
+    const showConfidence = confidence === 'low' || confidence === 'medium';
+    const confidenceColor = confidence === 'low' ? colors.error : colors.warning;
+    const confidenceIcon = confidence === 'low' ? 'alert-circle' : 'information-circle-outline';
+    const confidenceLabel = confidence === 'low' ? t('ai_confidence_low') : t('ai_confidence_medium');
+
     return (
       <View style={[styles.aiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {/* Name + calories hero */}
         <Text style={[styles.aiName, { color: colors.text }]}>{food.name}</Text>
+
+        {showConfidence ? (
+          <View style={[styles.confidenceChip, { backgroundColor: tint(confidenceColor, 0.1) }]}>
+            <Ionicons name={confidenceIcon} size={12} color={confidenceColor} />
+            <Text style={[styles.confidenceText, { color: confidenceColor }]} numberOfLines={1}>
+              {confidenceLabel}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.kcalRow}>
           <Text style={[styles.kcalValue, { color: colors.text }]}>{totalKcal}</Text>
@@ -575,6 +590,11 @@ const styles = StyleSheet.create({
     borderRadius: 16, borderWidth: 1, padding: SPACING.md, marginVertical: 4,
   },
   aiName: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  confidenceChip: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
+    gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 6,
+  },
+  confidenceText: { fontSize: FONT_SIZE.xs, fontWeight: '500' },
   kcalRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4 },
   kcalValue: { fontSize: 32, fontWeight: '800', letterSpacing: -1 },
   kcalLabel: { fontSize: FONT_SIZE.sm },

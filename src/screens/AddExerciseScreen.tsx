@@ -127,9 +127,9 @@ export default function AddExerciseScreen() {
       </View>
 
       {/* Preview */}
-      <View style={[styles.previewCard, { backgroundColor: isDark ? 'rgba(239,83,80,0.1)' : '#FFF5F3', borderColor: isDark ? 'rgba(239,83,80,0.2)' : '#FFE0DB' }]}>
-        <Ionicons name="flame" size={28} color={colors.error} />
-        <Text style={[styles.previewBurned, { color: colors.error }]}>{burned}</Text>
+      <View style={[styles.previewCard, { backgroundColor: isDark ? 'rgba(255,152,0,0.1)' : '#FFF8EE', borderColor: isDark ? 'rgba(255,152,0,0.25)' : '#FFE0B2' }]}>
+        <Ionicons name="flame" size={28} color={colors.burned} />
+        <Text style={[styles.previewBurned, { color: colors.burned }]}>{burned}</Text>
         <Text style={[styles.previewLabel, { color: colors.textSecondary }]}>{t('exercise_burned')}</Text>
         <Text style={[styles.previewMeta, { color: colors.border }]}>
           {t(EXERCISE_I18N[selected] as any)} · {durationNum} {t('min')} · MET {exercise.met}
@@ -137,8 +137,8 @@ export default function AddExerciseScreen() {
       </View>
 
       {/* Confirm */}
-      <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: colors.error }]} onPress={handleConfirm} activeOpacity={0.8}>
-        <Ionicons name="flame" size={20} color="#fff" />
+      <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: colors.primary }]} onPress={handleConfirm} activeOpacity={0.8}>
+        <Ionicons name="checkmark" size={20} color="#fff" />
         <Text style={styles.confirmText}>{t('exercise_add')}</Text>
       </TouchableOpacity>
     </ScrollView>

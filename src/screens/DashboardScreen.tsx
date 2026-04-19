@@ -145,9 +145,9 @@ export default function DashboardScreen() {
 
         {/* Macro mini rings */}
         <Animated.View style={[styles.macroRow, { backgroundColor: colors.surface, borderColor: colors.border, opacity: fadeMacro, transform: [{ translateY: fadeMacro.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
-          <MiniRing progress={target.protein > 0 ? totalProtein / target.protein : 0} color={colors.protein} current={Math.round(totalProtein)} target={target.protein} label={t('dash_protein')} moreLabel={t('dash_more')} />
-          <MiniRing progress={target.fat > 0 ? totalFat / target.fat : 0} color={colors.fat} current={Math.round(totalFat)} target={target.fat} label={t('dash_fat')} moreLabel={t('dash_more')} />
-          <MiniRing progress={target.carbs > 0 ? totalCarbs / target.carbs : 0} color={colors.carbs} current={Math.round(totalCarbs)} target={target.carbs} label={t('dash_carbs')} moreLabel={t('dash_more')} />
+          <MiniRing progress={target.protein > 0 ? totalProtein / target.protein : 0} color={colors.protein} current={Math.round(totalProtein)} target={target.protein} label={t('dash_protein')} moreLabel={t('dash_more')} overLabel={t('dash_over')} />
+          <MiniRing progress={target.fat > 0 ? totalFat / target.fat : 0} color={colors.fat} current={Math.round(totalFat)} target={target.fat} label={t('dash_fat')} moreLabel={t('dash_more')} overLabel={t('dash_over')} />
+          <MiniRing progress={target.carbs > 0 ? totalCarbs / target.carbs : 0} color={colors.carbs} current={Math.round(totalCarbs)} target={target.carbs} label={t('dash_carbs')} moreLabel={t('dash_more')} overLabel={t('dash_over')} />
         </Animated.View>
 
         {/* Micro nutrients — collapsible */}
