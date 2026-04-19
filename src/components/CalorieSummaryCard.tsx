@@ -15,7 +15,7 @@ interface CalorieSummaryCardProps {
 }
 
 function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardProps) {
-  const { colors } = useTheme();
+  const { colors, tint } = useTheme();
   const { t } = useI18n();
 
   const net = eaten - burned;
@@ -45,6 +45,9 @@ function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardPr
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="summary" accessibilityLabel={`${t('dash_eaten')} ${eaten} ${t('kcal')}, ${t('dash_burned')} ${burned}, ${t('dash_remaining')} ${remaining}`}>
+      {/* Radial glow behind ring */}
+      <View pointerEvents="none" style={[styles.glowOuter, { backgroundColor: tint(overLimit ? colors.error : colors.calories, 0.06) }]} />
+      <View pointerEvents="none" style={[styles.glowInner, { backgroundColor: tint(overLimit ? colors.error : colors.calories, 0.10) }]} />
       <View style={styles.row}>
         {/* Left: eaten */}
         <View style={styles.stat}>
@@ -110,6 +113,27 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: SPACING.md,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  glowOuter: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    top: '50%',
+    left: '50%',
+    marginTop: -120,
+    marginLeft: -120,
+  },
+  glowInner: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    top: '50%',
+    left: '50%',
+    marginTop: -85,
+    marginLeft: -85,
   },
   row: {
     flexDirection: 'row',

@@ -156,6 +156,14 @@ export default function DashboardScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dash_extra')}</Text>
             <Ionicons name={microExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
           </TouchableOpacity>
+          {!microExpanded && (
+            <View style={styles.microPreview}>
+              <MicroChip label={t('dash_fiber')} value={r1(totalFiber)} target={DAILY_MICRO_TARGETS.fiber} color={colors.fiber} errorColor={colors.error} subColor={colors.textSecondary} good />
+              <MicroChip label={t('dash_sugars')} value={r1(totalSugars)} target={DAILY_MICRO_TARGETS.sugars} color={colors.sugars} errorColor={colors.error} subColor={colors.textSecondary} />
+              <MicroChip label={t('dash_sat_fat')} value={r1(totalSaturatedFat)} target={DAILY_MICRO_TARGETS.saturatedFat} color={colors.saturatedFat} errorColor={colors.error} subColor={colors.textSecondary} />
+              <MicroChip label={t('dash_salt')} value={r1(totalSalt)} target={DAILY_MICRO_TARGETS.salt} color={colors.salt} errorColor={colors.error} subColor={colors.textSecondary} />
+            </View>
+          )}
           {microExpanded && (
             <View style={{ marginTop: SPACING.sm }}>
               <MicroRow label={t('dash_fiber')} current={r1(totalFiber)} target={DAILY_MICRO_TARGETS.fiber} color={colors.fiber} errorColor={colors.error} textColor={colors.text} subColor={colors.textSecondary} good />
@@ -268,7 +276,24 @@ const microS = StyleSheet.create({
   barBg: { flex: 1, height: 6, borderRadius: 3, marginRight: 8, overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: 3 },
   value: { fontSize: 11, width: 65, textAlign: 'right', fontWeight: '500' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  chipDot: { width: 6, height: 6, borderRadius: 3 },
+  chipText: { fontSize: 11, fontWeight: '600' },
 });
+
+function MicroChip({ label, value, target, color, errorColor, subColor, good }: {
+  label: string; value: number; target: number; color: string; errorColor: string; subColor: string; good?: boolean;
+}) {
+  const warn = good ? false : value > target;
+  return (
+    <View style={microS.chip}>
+      <View style={[microS.chipDot, { backgroundColor: warn ? errorColor : color }]} />
+      <Text style={[microS.chipText, { color: warn ? errorColor : subColor }]}>
+        {label} {value}g
+      </Text>
+    </View>
+  );
+}
 
 /* ---- Styles ---- */
 

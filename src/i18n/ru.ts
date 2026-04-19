@@ -301,6 +301,9 @@ export const ru = {
   // Streak
   streak_days: 'дней подряд',
   streak_best: 'рекорд',
+  streak_keep: 'Так держать!',
+  streak_warm: 'Набираешь обороты 🔥',
+  streak_hot: 'Горит! Не останавливайся 🔥🔥',
 } as const;
 
 export type TranslationKey = keyof typeof ru;

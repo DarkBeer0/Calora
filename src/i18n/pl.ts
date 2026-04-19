@@ -280,4 +280,7 @@ export const pl: Record<TranslationKey, string> = {
   // Streak
   streak_days: 'dni z rzędu',
   streak_best: 'rekord',
+  streak_keep: 'Tak trzymać!',
+  streak_warm: 'Nabierasz rozpędu 🔥',
+  streak_hot: 'Płonie! Nie zatrzymuj się 🔥🔥',
 };
