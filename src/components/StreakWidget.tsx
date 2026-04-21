@@ -27,7 +27,7 @@ export default function StreakWidget({ current, best }: Props) {
     prevCurrent.current = current;
   }, [current]);
 
-  if (current === 0 && best === 0) return null;
+  if (current === 0) return null;
 
   const isHot = current >= 7;
   const isWarm = current >= 3;

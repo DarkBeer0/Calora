@@ -69,19 +69,21 @@ function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardPr
                 fill="none"
                 opacity={0.12}
               />
-              <AnimatedCircle
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                stroke={overLimit ? colors.error : colors.calories}
-                strokeWidth={strokeWidth}
-                fill="none"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                rotation="-90"
-                origin={`${size / 2}, ${size / 2}`}
-              />
+              {progress > 0 && (
+                <AnimatedCircle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  stroke={overLimit ? colors.error : colors.calories}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  rotation="-90"
+                  origin={`${size / 2}, ${size / 2}`}
+                />
+              )}
             </Svg>
             <View style={styles.ringCenter}>
               <Text style={[styles.ringValue, { color: overLimit ? colors.error : colors.calories }]}>
