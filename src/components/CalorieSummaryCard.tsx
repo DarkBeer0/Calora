@@ -45,9 +45,6 @@ function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardPr
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="summary" accessibilityLabel={`${t('dash_eaten')} ${eaten} ${t('kcal')}, ${t('dash_burned')} ${burned}, ${t('dash_remaining')} ${remaining}`}>
-      {/* Radial glow behind ring */}
-      <View pointerEvents="none" style={[styles.glowOuter, { backgroundColor: tint(overLimit ? colors.error : colors.calories, 0.06) }]} />
-      <View pointerEvents="none" style={[styles.glowInner, { backgroundColor: tint(overLimit ? colors.error : colors.calories, 0.10) }]} />
       <View style={styles.row}>
         {/* Left: eaten */}
         <View style={styles.stat}>
@@ -56,43 +53,63 @@ function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardPr
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dash_eaten')}</Text>
         </View>
 
-        {/* Center: ring */}
-        <View style={{ alignItems: 'center' }}>
-          <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-            <Svg width={size} height={size}>
-              <Circle
+        {/* Center: ring (with radial glow anchored to the ring itself) */}
+        <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.glowOuter,
+              {
+                top: (size - 240) / 2,
+                left: (size - 240) / 2,
+                backgroundColor: tint(overLimit ? colors.error : colors.calories, 0.06),
+              },
+            ]}
+          />
+          <View
+            pointerEvents="none"
+            style={[
+              styles.glowInner,
+              {
+                top: (size - 170) / 2,
+                left: (size - 170) / 2,
+                backgroundColor: tint(overLimit ? colors.error : colors.calories, 0.10),
+              },
+            ]}
+          />
+          <Svg width={size} height={size}>
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={colors.calories}
+              strokeWidth={strokeWidth}
+              fill="none"
+              opacity={0.12}
+            />
+            {progress > 0 && (
+              <AnimatedCircle
                 cx={size / 2}
                 cy={size / 2}
                 r={radius}
-                stroke={colors.calories}
+                stroke={overLimit ? colors.error : colors.calories}
                 strokeWidth={strokeWidth}
                 fill="none"
-                opacity={0.12}
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                rotation="-90"
+                origin={`${size / 2}, ${size / 2}`}
               />
-              {progress > 0 && (
-                <AnimatedCircle
-                  cx={size / 2}
-                  cy={size / 2}
-                  r={radius}
-                  stroke={overLimit ? colors.error : colors.calories}
-                  strokeWidth={strokeWidth}
-                  fill="none"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  rotation="-90"
-                  origin={`${size / 2}, ${size / 2}`}
-                />
-              )}
-            </Svg>
-            <View style={styles.ringCenter}>
-              <Text style={[styles.ringValue, { color: overLimit ? colors.error : colors.calories }]}>
-                {remaining}
-              </Text>
-              <Text style={[styles.ringLabel, { color: colors.textSecondary }]}>
-                {overLimit ? t('dash_over') : t('dash_remaining')}
-              </Text>
-            </View>
+            )}
+          </Svg>
+          <View style={styles.ringCenter}>
+            <Text style={[styles.ringValue, { color: overLimit ? colors.error : colors.calories }]}>
+              {remaining}
+            </Text>
+            <Text style={[styles.ringLabel, { color: colors.textSecondary }]}>
+              {overLimit ? t('dash_over') : t('dash_remaining')}
+            </Text>
           </View>
         </View>
 
@@ -122,20 +139,12 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 120,
-    top: '50%',
-    left: '50%',
-    marginTop: -120,
-    marginLeft: -120,
   },
   glowInner: {
     position: 'absolute',
     width: 170,
     height: 170,
     borderRadius: 85,
-    top: '50%',
-    left: '50%',
-    marginTop: -85,
-    marginLeft: -85,
   },
   row: {
     flexDirection: 'row',
