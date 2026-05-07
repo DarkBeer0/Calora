@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
@@ -39,6 +40,7 @@ export default function AddExerciseScreen() {
   const { t } = useI18n();
   const { profile } = useProfile();
   const { addExercise } = useExercises();
+  const insets = useSafeAreaInsets();
 
   const [selected, setSelected] = useState<string>('walking');
   const [duration, setDuration] = useState('30');
@@ -73,7 +75,10 @@ export default function AddExerciseScreen() {
   };
 
   return (
-    <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.container}>
+    <ScrollView
+      style={[styles.scroll, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + SPACING.lg }]}
+    >
       <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('exercise_type')}</Text>
       <View style={styles.grid}>
         {exerciseKeys.map((key) => {
@@ -147,7 +152,7 @@ export default function AddExerciseScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  container: { padding: SPACING.lg, paddingBottom: 40 },
+  container: { padding: SPACING.lg },
   sectionLabel: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginBottom: SPACING.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.lg },
   exerciseBtn: {

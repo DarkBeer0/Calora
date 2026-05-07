@@ -1,12 +1,9 @@
 import { useEffect, useRef, memo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface CalorieSummaryCardProps {
   eaten: number;
@@ -20,13 +17,10 @@ function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardPr
 
   const net = eaten - burned;
   const remaining = Math.max(target - net, 0);
-  const progress = target > 0 ? Math.min(net / target, 1) : 0;
+  const overBy = Math.max(net - target, 0);
   const overLimit = net > target;
-
-  const size = 130;
-  const strokeWidth = 12;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
+  const progress = target > 0 ? Math.min(Math.max(net / target, 0), 1) : 0;
+  const accent = overLimit ? colors.error : colors.calories;
 
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -34,90 +28,62 @@ function CalorieSummaryCardInner({ eaten, burned, target }: CalorieSummaryCardPr
     Animated.timing(anim, {
       toValue: progress,
       duration: 800,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [progress]);
 
-  const strokeDashoffset = anim.interpolate({
+  const barWidth = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [circumference, 0],
+    outputRange: ['0%', '100%'],
   });
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="summary" accessibilityLabel={`${t('dash_eaten')} ${eaten} ${t('kcal')}, ${t('dash_burned')} ${burned}, ${t('dash_remaining')} ${remaining}`}>
-      <View style={styles.row}>
-        {/* Left: eaten */}
-        <View style={styles.stat}>
-          <Ionicons name="restaurant" size={18} color={colors.calories} />
-          <Text style={[styles.statValue, { color: colors.text }]}>{eaten}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dash_eaten')}</Text>
-        </View>
+    <View
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      accessibilityRole="summary"
+      accessibilityLabel={`${t('dash_eaten')} ${eaten} ${t('kcal')}, ${t('dash_burned')} ${burned}, ${t('dash_remaining')} ${remaining}`}
+    >
+      {/* Top row: hero number */}
+      <View style={styles.heroRow}>
+        <Text style={[styles.heroValue, { color: accent }]}>
+          {overLimit ? `+${overBy}` : remaining}
+        </Text>
+        <Text style={[styles.heroUnit, { color: colors.textSecondary }]}>{t('kcal')}</Text>
+      </View>
+      <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>
+        {overLimit ? t('dash_over') : t('dash_remaining')}
+      </Text>
 
-        {/* Center: ring (with radial glow anchored to the ring itself) */}
-        <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-          <View
-            pointerEvents="none"
-            style={[
-              styles.glowOuter,
-              {
-                top: (size - 240) / 2,
-                left: (size - 240) / 2,
-                backgroundColor: tint(overLimit ? colors.error : colors.calories, 0.06),
-              },
-            ]}
-          />
-          <View
-            pointerEvents="none"
-            style={[
-              styles.glowInner,
-              {
-                top: (size - 170) / 2,
-                left: (size - 170) / 2,
-                backgroundColor: tint(overLimit ? colors.error : colors.calories, 0.10),
-              },
-            ]}
-          />
-          <Svg width={size} height={size}>
-            <Circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke={colors.calories}
-              strokeWidth={strokeWidth}
-              fill="none"
-              opacity={0.12}
-            />
-            {progress > 0 && (
-              <AnimatedCircle
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                stroke={overLimit ? colors.error : colors.calories}
-                strokeWidth={strokeWidth}
-                fill="none"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                rotation="-90"
-                origin={`${size / 2}, ${size / 2}`}
-              />
-            )}
-          </Svg>
-          <View style={styles.ringCenter}>
-            <Text style={[styles.ringValue, { color: overLimit ? colors.error : colors.calories }]}>
-              {remaining}
-            </Text>
-            <Text style={[styles.ringLabel, { color: colors.textSecondary }]}>
-              {overLimit ? t('dash_over') : t('dash_remaining')}
-            </Text>
+      {/* Progress bar */}
+      <View style={[styles.barTrack, { backgroundColor: tint(accent, 0.12) }]}>
+        <Animated.View style={[styles.barFill, { width: barWidth, backgroundColor: accent }]} />
+      </View>
+      <Text style={[styles.barCaption, { color: colors.textSecondary }]}>
+        {Math.max(net, 0)} / {target} {t('kcal')}
+      </Text>
+
+      {/* Bottom stats */}
+      <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
+        <View style={styles.stat}>
+          <View style={[styles.statIcon, { backgroundColor: tint(colors.calories, 0.12) }]}>
+            <Ionicons name="restaurant" size={16} color={colors.calories} />
+          </View>
+          <View>
+            <Text style={[styles.statValue, { color: colors.text }]}>{eaten}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dash_eaten')}</Text>
           </View>
         </View>
 
-        {/* Right: burned */}
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
         <View style={styles.stat}>
-          <Ionicons name="flame" size={18} color={colors.burned} />
-          <Text style={[styles.statValue, { color: colors.text }]}>{burned}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dash_burned')}</Text>
+          <View style={[styles.statIcon, { backgroundColor: tint(colors.burned, 0.12) }]}>
+            <Ionicons name="flame" size={16} color={colors.burned} />
+          </View>
+          <View>
+            <Text style={[styles.statValue, { color: colors.text }]}>{burned}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dash_burned')}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -130,49 +96,78 @@ export default CalorieSummaryCard;
 const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
-    padding: SPACING.md,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
     borderWidth: 1,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  heroValue: {
+    fontSize: 48,
+    fontWeight: '800',
+    letterSpacing: -1,
+    lineHeight: 52,
+  },
+  heroUnit: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '600',
+  },
+  heroLabel: {
+    fontSize: FONT_SIZE.sm,
+    textAlign: 'center',
+    marginTop: 2,
+    marginBottom: SPACING.md,
+  },
+  barTrack: {
+    height: 8,
+    borderRadius: 4,
     overflow: 'hidden',
   },
-  glowOuter: {
-    position: 'absolute',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
+  barFill: {
+    height: '100%',
+    borderRadius: 4,
   },
-  glowInner: {
-    position: 'absolute',
-    width: 170,
-    height: 170,
-    borderRadius: 85,
+  barCaption: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: SPACING.md,
   },
-  row: {
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    paddingTop: SPACING.md,
   },
   stat: {
+    flexDirection: 'row',
     alignItems: 'center',
-    width: 80,
+    gap: SPACING.sm,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  statIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statValue: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
-    marginTop: 4,
   },
   statLabel: {
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: -2,
   },
-  ringCenter: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  ringValue: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '800',
-  },
-  ringLabel: {
-    fontSize: 10,
+  divider: {
+    width: 1,
+    height: 32,
   },
 });
