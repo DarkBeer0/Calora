@@ -1,8 +1,6 @@
 import type { FoodItem } from '../types';
 
-const PROXY_URL =
-  process.env.EXPO_PUBLIC_AI_PROXY_URL ||
-  'https://calora-ai-six.vercel.app/api/ai-nutrition';
+const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || '';
 const APP_SECRET = process.env.EXPO_PUBLIC_APP_SECRET || '';
 
 const REQUEST_TIMEOUT_MS = 20_000; // 20 seconds

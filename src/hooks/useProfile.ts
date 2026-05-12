@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { UserProfile } from '../types';
 
@@ -14,7 +14,25 @@ const DEFAULT_PROFILE: UserProfile = {
   goal: 'maintain',
 };
 
+export interface ProfileContextType {
+  profile: UserProfile;
+  saveProfile: (updated: UserProfile) => Promise<void>;
+  isLoading: boolean;
+}
+
+const defaultCtx: ProfileContextType = {
+  profile: DEFAULT_PROFILE,
+  saveProfile: async () => {},
+  isLoading: true,
+};
+
+export const ProfileContext = createContext<ProfileContextType>(defaultCtx);
+
 export function useProfile() {
+  return useContext(ProfileContext);
+}
+
+export function useProfileProvider(): ProfileContextType {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [isLoading, setIsLoading] = useState(true);
 

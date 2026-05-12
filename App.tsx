@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerWidgetTaskHandler } from 'react-native-android-widget';
 import { ThemeContext, useThemeProvider } from './src/hooks/useTheme';
 import { I18nContext, useI18nProvider } from './src/i18n';
-import { useProfile } from './src/hooks/useProfile';
+import { ProfileContext, useProfileProvider, useProfile } from './src/hooks/useProfile';
 import RootNavigator from './src/navigation/RootNavigator';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -17,6 +17,7 @@ registerWidgetTaskHandler(widgetTaskHandler);
 export default function App() {
   const theme = useThemeProvider();
   const i18n = useI18nProvider();
+  const profile = useProfileProvider();
 
   return (
     <ErrorBoundary>
@@ -24,8 +25,10 @@ export default function App() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <I18nContext.Provider value={i18n}>
             <ThemeContext.Provider value={theme}>
-              <AppContent />
-              <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+              <ProfileContext.Provider value={profile}>
+                <AppContent />
+                <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+              </ProfileContext.Provider>
             </ThemeContext.Provider>
           </I18nContext.Provider>
         </GestureHandlerRootView>
