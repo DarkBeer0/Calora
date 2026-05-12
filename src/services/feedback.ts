@@ -1,6 +1,5 @@
 const PROXY_BASE =
-  process.env.EXPO_PUBLIC_AI_PROXY_URL?.replace('/api/ai-nutrition', '') ||
-  'https://calora-ai-six.vercel.app';
+  process.env.EXPO_PUBLIC_AI_PROXY_URL?.replace('/api/ai-nutrition', '') || '';
 const APP_SECRET = process.env.EXPO_PUBLIC_APP_SECRET || '';
 
 export interface FeedbackData {

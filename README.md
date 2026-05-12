@@ -1,39 +1,40 @@
 # 🔥 Calora
 
-Мобильное приложение для подсчёта калорий с AI-анализом еды, отслеживанием КБЖУ, микронутриентов, воды и тренировок.
+A mobile calorie-tracking app with AI food analysis, macro/micronutrient tracking, water intake, and workouts.
 
 <p align="center">
   <img src="assets/icon.png" width="120" alt="Calora Icon" />
 </p>
 
-## Описание
+## Overview
 
-Calora помогает контролировать питание: вести дневник приёмов пищи, рассчитывать дневную норму КБЖУ на основе персональных параметров, отслеживать микронутриенты, воду и учитывать сожжённые калории от упражнений.
+Calora helps you control your nutrition: log meals, calculate daily calorie and macro targets from your personal metrics, track micronutrients and water, and account for calories burned through exercise.
 
-**Ключевые особенности:**
-- 🤖 **AI-чат** — опишите блюдо словами или отправьте фото, AI рассчитает КБЖУ
-- 🍳 **Рецепты** — создавайте составные блюда с AI-распознаванием ингредиентов
-- 📊 **Полный трекинг** — калории, БЖУ, микронутриенты, вода, упражнения
-- 💧 **Визуализация воды** — SVG-силуэт человека с градиентным заполнением
-- 🔥 **Стрик-система** — отслеживание дней подряд с логированием
-- 📱 **Offline-first** — все данные хранятся на устройстве, без регистрации
-- 🎨 **Семантическая дизайн-система** — WCAG AA контраст, `tint()` утилита для прозрачностей
-- 🌙 **Тёмная тема** + 3 языка (RU / EN / PL)
+**Key features:**
+- 🤖 **AI chat** — describe a meal or snap a photo and the AI computes calories and macros
+- 🍳 **Recipes** — build compound dishes with AI ingredient recognition
+- 📊 **Full tracking** — calories, protein/fat/carbs, micronutrients, water, exercises
+- 💧 **Water visualization** — SVG human silhouette with a gradient fill
+- 🔥 **Streak system** — track consecutive days of logging
+- 📱 **Offline-first** — all data is stored on-device, no account required
+- 🎨 **Semantic design system** — WCAG AA contrast, `tint()` utility for transparencies
+- 🌙 **Dark mode** + 3 languages (RU / EN / PL)
 
-## Технологический стек
+## Tech stack
 
-| Категория | Технологии |
-|-----------|------------|
-| **Фреймворк** | React Native 0.81 + Expo SDK 54, TypeScript 5.9 |
-| **Навигация** | React Navigation (Tab + Stack) |
-| **Хранилище** | AsyncStorage (offline-first) |
-| **AI** | Groq API (Llama 3.3 70B текст + Llama 4 Scout Vision) через Vercel-прокси |
+| Category | Stack |
+|----------|------|
+| **Framework** | React Native 0.81 + Expo SDK 54, TypeScript 5.9 |
+| **Navigation** | React Navigation (Tab + Stack) |
+| **Storage** | AsyncStorage (offline-first) |
+| **AI** | Groq API (Llama 3.3 70B text + Llama 4 Scout vision) via Vercel proxy |
 | **UI** | react-native-svg, react-native-chart-kit, expo-haptics |
-| **Камера** | expo-camera (штрих-коды), expo-image-picker (фото еды) |
-| **Уведомления** | expo-notifications (development build) |
-| **Email** | Resend API (обратная связь) |
+| **Camera** | expo-camera (barcodes), expo-image-picker (food photos) |
+| **Notifications** | expo-notifications (development build) |
+| **Email** | Resend API (user feedback) |
+| **Widgets** | react-native-android-widget (Android home-screen widget) |
 
-## Архитектура
+## Architecture
 
 ```
 ┌──────────────┐                              ┌──────────────────┐
@@ -45,210 +46,216 @@ Calora помогает контролировать питание: вести 
 └──────────────┘                              └──────────────────┘
 ```
 
-- API-ключи хранятся **только на сервере** (Vercel env)
+- API keys live **only on the server** (Vercel env)
 - Rate limiting: 20 req/min (AI), 3 req/min (feedback)
-- Клиент: лимит 10 AI-запросов/день на устройство
-- Фото: base64 до ~5MB, vision модель для распознавания еды
-- Обратная связь: Resend → email разработчику
+- Client-side cap: 10 AI requests per day per device
+- Photos: base64 up to ~5 MB, vision model for food recognition
+- Feedback: Resend → developer's mailbox
 
-## Дизайн-система
+## Design system
 
-Проект использует **семантическую цветовую систему** с раздельными палитрами для светлой и тёмной тем:
+Calora uses a **semantic color system** with separate palettes for light and dark themes:
 
-- **Семантические цвета**: `calories`, `burned`, `protein`, `fat`, `carbs`, `water`, `weight`, `favorite`, `warning`, `success`, `error`
-- `calories` (потребление) и `burned` (упражнения) — одна тёплая гамма (оранжевая), но визуально различимы
-- `error` строго для деструктивных действий (удаление), не для визуализации сжигания
-- **`tint(color, opacity)`** — утилита для прозрачных фонов вместо ручных `rgba()`
-- **WCAG AA** контраст для обеих тем, тёмная тема использует Material 300-400 оттенки
-- **Константы `ALPHA_HEX`** для стандартных уровней прозрачности
+- **Semantic tokens**: `calories`, `burned`, `protein`, `fat`, `carbs`, `water`, `weight`, `favorite`, `warning`, `success`, `error`
+- `calories` (intake) and `burned` (exercise) share a warm orange family but remain visually distinct
+- `error` is reserved for destructive actions (delete), never for representing burned calories
+- **`tint(color, opacity)`** — utility for transparent backgrounds instead of hand-rolled `rgba()`
+- **WCAG AA** contrast on both themes; dark mode uses Material 300–400 shades
+- **`ALPHA_HEX` constants** for standard opacity levels
 
-## Структура проекта
+## Project structure
 
 ```
 src/
   constants/
-    theme.ts            — светлая тема, семантические цвета, отступы, шрифты, ALPHA_HEX
-    darkTheme.ts        — тёмная тема (WCAG AA контраст)
-    nutrition.ts        — коэффициенты активности, цели, дневные нормы микронутриентов
-    exercises.ts        — типы упражнений, MET-коэффициенты
+    theme.ts            — light theme, semantic colors, spacing, fonts, ALPHA_HEX
+    darkTheme.ts        — dark theme (WCAG AA contrast)
+    nutrition.ts        — activity coefficients, goals, daily micronutrient targets
+    exercises.ts        — exercise types, MET coefficients
   types/
-    index.ts            — TypeScript-интерфейсы (FoodItem, MealEntry, Recipe, RecipeIngredient...)
+    index.ts            — TypeScript interfaces (FoodItem, MealEntry, Recipe, RecipeIngredient, ...)
   utils/
-    nutrition.ts        — расчёт BMR (Mifflin-St Jeor), дневной нормы КБЖУ
+    nutrition.ts        — BMR (Mifflin-St Jeor) and daily macro targets
   services/
-    aiNutrition.ts      — AI-анализ текста и фото еды (Vercel proxy)
-    openfoodfacts.ts    — Open Food Facts API (штрих-коды)
-    feedback.ts         — отправка обратной связи через Resend
-    supabase.ts         — placeholder для будущей интеграции Supabase
+    aiNutrition.ts      — AI text/photo food analysis (Vercel proxy)
+    openfoodfacts.ts    — Open Food Facts API (barcodes)
+    feedback.ts         — feedback delivery via Resend
+    supabase.ts         — placeholder for future Supabase integration
   hooks/
-    useProfile.ts       — профиль пользователя (возраст, вес, рост, пол, цель)
-    useMeals.ts         — CRUD приёмов пищи, дневная сводка (todaySummary)
-    useExercises.ts     — CRUD упражнений с MET-расчётом
-    useWater.ts         — трекер воды с undo
-    useWeight.ts        — история веса
-    useTheme.ts         — переключение тем + tint() утилита
-    useFoods.ts         — недавние/избранные продукты (макс. 30)
-    useRecipes.ts       — рецепты, computeRecipeNutrition, computeRecipeTotalWeight, recipeServingGrams
-    useStreak.ts        — стрик-система (текущий/лучший стрик дней)
-    useNotifications.ts — напоминания (graceful degradation в Expo Go)
-    useDebounce.ts      — дебаунс для поиска
+    useProfile.ts       — user profile (age, weight, height, sex, goal)
+    useMeals.ts         — meal CRUD, daily summary (todaySummary)
+    useExercises.ts     — exercise CRUD with MET calculation
+    useWater.ts         — water tracker with undo
+    useWeight.ts        — weight history
+    useTheme.ts         — theme switching + tint() utility
+    useFoods.ts         — recent / favorite foods (max 30)
+    useRecipes.ts       — recipes, computeRecipeNutrition, computeRecipeTotalWeight, recipeServingGrams
+    useStreak.ts        — streak system (current / best logging streak)
+    useNotifications.ts — reminders (graceful degradation in Expo Go)
+    useDebounce.ts      — debounced search
   i18n/
-    index.ts            — механизм мультиязычности
-    ru.ts, en.ts, pl.ts — переводы (300+ ключей на язык)
+    index.ts            — localization mechanism
+    ru.ts, en.ts, pl.ts — translations (300+ keys per language)
   components/
-    SplashScreen.tsx    — анимированный экран загрузки
-    AIThinkingAnimation — анимация ожидания AI-ответа
-    CalorieSummaryCard  — виджет калорий с анимированным кольцом
-    MiniRing.tsx        — компактное кольцо БЖУ (адаптивная ширина, numberOfLines)
-    MealCard.tsx        — карточка продукта (акцент на калории, swipe-to-delete)
-    MealActionModal.tsx — анимированная модалка действий (редактирование/удаление)
-    ExerciseCard.tsx    — карточка упражнения (burned-цвет)
-    WaterWidget.tsx     — трекер воды (SVG-силуэт человека, градиент красный→жёлтый→зелёный)
-    StreakWidget.tsx     — виджет стрика дней
-    ProgressRing.tsx    — переиспользуемое кольцо прогресса
-    MacroBar.tsx        — горизонтальный бар макросов с контекстом дневной нормы
-    CustomAlert.tsx     — кастомный модальный alert
-    ErrorBoundary.tsx   — обработка ошибок
-    SkeletonDashboard   — скелетон загрузки
-    Logo.tsx            — SVG-логотип (3 варианта)
+    SplashScreen.tsx       — animated launch screen
+    AIThinkingAnimation    — AI loading animation
+    CalorieSummaryCard     — calorie widget with animated ring
+    MiniRing.tsx           — compact macro ring (adaptive width, numberOfLines)
+    MealCard.tsx           — food card (calorie-first design, swipe-to-delete)
+    MealActionModal.tsx    — animated action sheet (edit / delete)
+    ExerciseCard.tsx       — exercise card (burned color)
+    WaterWidget.tsx        — water tracker (SVG human silhouette, red → yellow → green gradient)
+    StreakWidget.tsx       — streak widget
+    ProgressRing.tsx       — reusable progress ring
+    MacroBar.tsx           — horizontal macro bar with daily-target context
+    CustomAlert.tsx        — custom modal alert
+    ErrorBoundary.tsx      — error handling
+    SkeletonDashboard      — loading skeleton
+    Logo.tsx               — SVG logo (3 variants)
   screens/
-    DashboardScreen     — главный экран (кольца, вода, стрик, упражнения)
-    AddMealScreen       — AI-чат + фото для добавления еды, мини-нутриенты после добавления
-    ConfirmMealScreen   — подтверждение порции с контекстом дневной нормы
-    BarcodeScannerScreen — сканер штрих-кодов
-    AddCustomFoodScreen — ручной ввод 8 нутриентов
-    AddExerciseScreen   — 10 типов упражнений с MET
-    HistoryScreen       — история по дням с копированием
-    AnalyticsScreen     — графики калорий, макросы, вес, экспорт/импорт
-    ProfileScreen       — профиль, настройки, тема, язык, уведомления
-    RecipesScreen       — список рецептов
-    AddRecipeScreen     — создание рецепта с AI-распознаванием ингредиентов
-    FeedbackScreen      — обратная связь разработчику
-    OnboardingScreen    — онбординг (3 шага)
+    DashboardScreen        — home (rings, water, streak, exercises)
+    AddMealScreen          — AI chat + photo input, mini-nutrient block after adding
+    ConfirmMealScreen      — portion confirmation with daily-target context
+    BarcodeScannerScreen   — barcode scanner
+    AddCustomFoodScreen    — manual entry of 8 nutrients
+    AddExerciseScreen      — 10 exercise types with MET
+    HistoryScreen          — daily history with copy-to-today
+    AnalyticsScreen        — calorie / macro / weight charts, JSON export-import
+    ProfileScreen          — profile, settings, theme, language, notifications
+    RecipesScreen          — recipe list
+    AddRecipeScreen        — recipe builder with AI ingredient recognition
+    FeedbackScreen         — feedback form to the developer
+    OnboardingScreen       — first-launch onboarding (3 steps)
   navigation/
-    RootNavigator.tsx   — Tab (3 вкладки) + Stack (10 модальных экранов)
+    RootNavigator.tsx      — Tab (3 tabs) + Stack (10 modal screens)
+  widgets/
+    CaloriesWidget.tsx     — Android home-screen widget
+    widgetTaskHandler.tsx  — widget task handler
 ```
 
-## Функции
+## Features
 
-### 🤖 AI-анализ еды
-- Описание блюда текстом → КБЖУ + польза + уровень уверенности
-- Фото еды → распознавание и анализ (Llama 4 Scout Vision)
-- Комбинация: фото + текстовое описание
-- Редактирование граммов перед добавлением
-- Мини-блок нутриентов после добавления продукта (калории, P/F/C бары)
-- Лимит 10 запросов/день, автовыбор типа приёма по времени (`getMealTypeByTime`)
+### 🤖 AI food analysis
+- Text description → calories, macros, benefits, confidence level
+- Food photo → recognition and analysis (Llama 4 Scout Vision)
+- Combined input: photo + text description
+- Edit grams before adding
+- Mini nutrient block after adding (calories, P/F/C bars)
+- 10 requests/day cap, automatic meal type by time of day (`getMealTypeByTime`)
 
-### 📊 Дашборд
-- Анимированное кольцо калорий (потреблено / сожжено / осталось)
-- 3 мини-кольца БЖУ (адаптивная ширина, обрезка длинного текста)
-- Сворачиваемые микронутриенты (клетчатка, сахар, насыщ. жиры, соль)
-- Трекер воды — SVG-силуэт человека с заполнением (градиент: красный → жёлтый → зелёный)
-- Виджет стрика дней (с визуальной индикацией 3+/7+ дней)
-- Карточки блюд с акцентом на калории (крупно, оранжевым), макросы — вторичные
-- Анимированная модалка действий при long-press на блюде
-- Упражнения с цветом `burned` (не `error`)
-- Pull-to-refresh, staggered fade-in анимации
+### 📊 Dashboard
+- Animated calorie ring (consumed / burned / remaining)
+- 3 mini macro rings (adaptive width, long-text truncation)
+- Collapsible micronutrients (fiber, sugar, saturated fat, salt)
+- Water tracker — SVG human silhouette with clipped fill (red → yellow → green gradient)
+- Streak widget (visual indicator at 3+ / 7+ days)
+- Meal cards with calorie-first design (large orange number, macros secondary)
+- Animated action sheet on long-press
+- Exercises shown in `burned` color (not `error`)
+- Pull-to-refresh, staggered fade-in animations
 
-### 🍳 Рецепты
-- Составные блюда из нескольких ингредиентов
-- AI-распознавание ингредиентов: опишите словами (например, «200г куриной грудки»), AI определит КБЖУ
-- Расчёт общего КБЖУ рецепта (per-100g нормализация для корректной работы с порциями)
-- Рецепт = полное блюдо (без деления на порции)
-- Переведённые сокращения макросов (Б/Ж/У, P/F/C, B/T/W)
+### 🍳 Recipes
+- Compound dishes from multiple ingredients
+- AI ingredient recognition: describe in words (e.g. "200 g chicken breast"), AI determines macros
+- Total recipe macro calculation (per-100g normalization for correct portioning)
+- Recipe = whole dish (no servings split)
+- Localized macro abbreviations (Б/Ж/У, P/F/C, B/T/W)
 
-### 👤 Профиль
-- Метрики: возраст, вес, рост, цель воды (dashed border, tap-to-edit)
-- Пол, уровень активности (иконки), цель (похудение/поддержание/набор)
-- Живой пересчёт дневной нормы КБЖУ
-- Тема, язык, уведомления (сворачиваемые)
-- Кнопка обратной связи
+### 👤 Profile
+- Metrics: age, weight, height, water goal (dashed border, tap-to-edit)
+- Sex, activity level (icons), goal (cut / maintain / bulk)
+- Live recalculation of daily targets
+- Theme, language, notifications (collapsible)
+- Feedback button
 
-### 📅 История и аналитика
-- Группировка по дням, swipe-to-delete, копирование дня на сегодня
-- Графики калорий (неделя/месяц), pie chart макросов
-- Трекинг веса с графиком (цвет `weight`), экспорт/импорт JSON
+### 📅 History & analytics
+- Day grouping, swipe-to-delete, copy day to today
+- Calorie charts (week / month), macro pie chart
+- Weight tracking with chart (`weight` color), JSON export / import
 
-### 🏋️ Упражнения
-- 10 типов с MET-расчётом (ходьба, бег, велосипед, плавание, зал, йога, HIIT, танцы, растяжка, другое)
+### 🏋️ Exercises
+- 10 types with MET calculation (walk, run, bike, swim, gym, yoga, HIIT, dance, stretch, other)
 - Swipe-to-delete, haptic feedback
-- Отображение сожжённых калорий цветом `burned`
+- Burned calories shown in `burned` color
 
-### 📷 Штрих-код + ручной ввод
-- Сканер через expo-camera → поиск в Open Food Facts
-- Ручной ввод всех 8 нутриентов
+### 📷 Barcode + manual entry
+- Scanner via expo-camera → Open Food Facts lookup
+- Manual entry for all 8 nutrients
 
-### 💧 Трекер воды
-- SVG-силуэт человека с клипированным заполнением
-- Цветовой градиент по уровню: красный (0%) → жёлтый (50%) → зелёный (100%)
-- Кнопки быстрого добавления (150/250/500 мл)
-- Минимальный уровень заполнения 20% для визуальной обратной связи
-- Кнопка undo
+### 💧 Water tracker
+- SVG human silhouette with clipped fill
+- Color gradient by level: red (0%) → yellow (50%) → green (100%)
+- Quick-add buttons (150 / 250 / 500 ml)
+- 20% minimum fill for visual feedback
+- Undo button
 
-### 💬 Обратная связь
-- Форма: имя (опц.), email для ответа (опц.), сообщение
-- Отправка через Resend API на email разработчика
+### 💬 Feedback
+- Form: name (optional), reply-to email (optional), message
+- Delivered via Resend API to the developer's inbox
 
-### 🎨 Прочее
-- Анимированный сплэш-экран с логотипом
-- Тёмная/светлая тема с семантической цветовой системой
-- 3 языка: русский, английский, польский (300+ ключей)
-- Уведомления (development build): еда, вода, итоги дня
-- Онбординг при первом запуске
-- `tint()` утилита для консистентных прозрачностей
-- ErrorBoundary для устойчивости
+### 🎨 Other
+- Animated splash screen with the logo
+- Light / dark theme with semantic color system
+- 3 languages: Russian, English, Polish (300+ keys)
+- Notifications (development build): meals, water, daily summary
+- First-launch onboarding
+- `tint()` utility for consistent transparencies
+- ErrorBoundary for resilience
+- Android home-screen widget (calories remaining)
 
-## Запуск
+## Getting started
 
 ```bash
-# Установка зависимостей
+# Install dependencies
 npm install
 
-# Запуск dev-сервера
+# Run the dev server
 npx expo start
 
-# С очисткой кэша
+# With cache cleared
 npx expo start -c
 
-# LAN-режим (телефон и ПК в одной сети)
+# LAN mode (phone and PC on the same network)
 npx expo start --lan
 ```
 
-## Сборка APK
+## Building an APK
 
 ```bash
-# Установить EAS CLI
+# Install EAS CLI
 npm install -g eas-cli
 
-# Авторизоваться
+# Sign in
 eas login
 
-# Настроить проект
+# Configure the project
 eas build:configure
 
-# Собрать APK (Android)
+# Build an APK (Android)
 eas build --platform android --profile preview
 ```
 
-## Переменные окружения
+## Environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-| Переменная | Описание |
-|-----------|----------|
-| `EXPO_PUBLIC_AI_PROXY_URL` | URL Vercel-прокси (по умолчанию встроен) |
-| `EXPO_PUBLIC_APP_SECRET` | Shared secret для аутентификации запросов |
+| Variable | Description |
+|----------|-------------|
+| `EXPO_PUBLIC_AI_PROXY_URL` | URL of your own Vercel proxy (e.g. `https://your-proxy.vercel.app/api/ai-nutrition`). AI features stay disabled until set. |
+| `EXPO_PUBLIC_APP_SECRET` | Shared secret for authenticating requests (must match the proxy's `APP_SECRET`). Optional. |
 
-### Серверные переменные (Vercel Dashboard → CaloraAI)
+> **Note:** the AI proxy is not bundled with this repo — you need to deploy your own (small Vercel/Node server that calls Groq + Resend). The client gracefully disables AI features when `EXPO_PUBLIC_AI_PROXY_URL` is empty.
 
-| Переменная | Описание |
-|-----------|----------|
-| `GROQ_API_KEY` | Ключ Groq API для AI-анализа |
-| `APP_SECRET` | Shared secret (совпадает с клиентским) |
-| `RESEND_API_KEY` | Ключ Resend для отправки email обратной связи |
+### Server variables (Vercel Dashboard → CaloraAI)
 
-## Лицензия
+| Variable | Description |
+|----------|-------------|
+| `GROQ_API_KEY` | Groq API key for AI analysis |
+| `APP_SECRET` | Shared secret (matches the client value) |
+| `RESEND_API_KEY` | Resend API key for delivering feedback emails |
 
-Private project.
+## License
+
+[MIT](LICENSE) © DarkBeer0
