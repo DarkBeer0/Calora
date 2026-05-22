@@ -263,6 +263,7 @@ export const ru = {
   ai_add_to_today: 'Добавить в рацион',
   ai_confidence_low: 'Низкая точность — проверьте значения',
   ai_confidence_medium: 'Примерная оценка',
+  ai_clarify_hint: 'Уточнить',
   ai_no_key: 'AI не настроен',
   ai_welcome_title: 'Опишите еду словами',
   ai_welcome_desc: 'AI рассчитает калории, БЖУ и пользу для любого блюда — даже домашнего',

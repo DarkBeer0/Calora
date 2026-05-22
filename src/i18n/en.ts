@@ -243,6 +243,7 @@ export const en: Record<TranslationKey, string> = {
   ai_add_to_today: 'Add to today',
   ai_confidence_low: 'Low confidence — double-check values',
   ai_confidence_medium: 'Approximate estimate',
+  ai_clarify_hint: 'Refine',
   ai_no_key: 'AI is not configured',
   ai_welcome_title: 'Describe food in words',
   ai_welcome_desc: 'AI will calculate calories, macros and benefits for any dish — even home-cooked',

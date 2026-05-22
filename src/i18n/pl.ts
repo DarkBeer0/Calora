@@ -243,6 +243,7 @@ export const pl: Record<TranslationKey, string> = {
   ai_add_to_today: 'Dodaj do dzisiaj',
   ai_confidence_low: 'Niska pewność — sprawdź wartości',
   ai_confidence_medium: 'Szacunkowa ocena',
+  ai_clarify_hint: 'Doprecyzuj',
   ai_no_key: 'AI nie jest skonfigurowane',
   ai_welcome_title: 'Opisz jedzenie słowami',
   ai_welcome_desc: 'AI obliczy kalorie, makro i korzyści dla każdego dania — nawet domowego',

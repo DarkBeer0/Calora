@@ -11,6 +11,15 @@ export function hasAIKey(): boolean {
   return PROXY_URL.length > 0;
 }
 
+export interface AIFoodClarification {
+  name: string;
+  totalGrams: number;
+  caloriesPer100g: number;
+  proteinPer100g: number;
+  fatPer100g: number;
+  carbsPer100g: number;
+}
+
 export interface AIFoodAnalysis {
   name: string;
   totalGrams: number;
@@ -24,6 +33,8 @@ export interface AIFoodAnalysis {
   saltPer100g: number;
   benefits: string;
   confidence: 'high' | 'medium' | 'low';
+  /** Optional: 3 alternative interpretations for ambiguous inputs ("суп", "салат") */
+  clarifications?: AIFoodClarification[];
 }
 
 /** Fetch with timeout via AbortController */

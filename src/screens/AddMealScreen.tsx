@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   Image,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -39,7 +40,7 @@ const LIMIT_STORAGE_KEY = 'calora_ai_daily';
 
 type ChatMessage =
   | { id: string; type: 'user'; text: string }
-  | { id: string; type: 'ai'; food: FoodItem; analysis: AIFoodAnalysis; grams: number; added?: boolean; addedNutrition?: ReturnType<typeof calculateNutrition> }
+  | { id: string; type: 'ai'; food: FoodItem; analysis: AIFoodAnalysis; grams: number; selectedVariantIdx?: number; added?: boolean; addedNutrition?: ReturnType<typeof calculateNutrition> }
   | { id: string; type: 'error'; text: string }
   | { id: string; type: 'browse' };
 
@@ -198,8 +199,43 @@ export default function AddMealScreen() {
     ));
   }, []);
 
+  const selectVariant = useCallback((msgId: string, variantIdx: number | null) => {
+    Haptics.selectionAsync();
+    setMessages((prev) => prev.map((m) => {
+      if (m.id !== msgId || m.type !== 'ai') return m;
+      if (variantIdx == null) {
+        // Deselect: return to original AI guess + its grams
+        return { ...m, selectedVariantIdx: undefined, grams: Math.round(m.analysis.totalGrams) };
+      }
+      const variant = m.analysis.clarifications?.[variantIdx];
+      if (!variant) return m;
+      return {
+        ...m,
+        selectedVariantIdx: variantIdx,
+        grams: Math.round(variant.totalGrams),
+      };
+    }));
+  }, []);
+
+  /** Effective food for an AI message — original or swapped to selected variant. */
+  const getEffectiveFood = useCallback((m: Extract<ChatMessage, { type: 'ai' }>): FoodItem => {
+    const { food, analysis, selectedVariantIdx } = m;
+    if (selectedVariantIdx == null || !analysis.clarifications) return food;
+    const v = analysis.clarifications[selectedVariantIdx];
+    if (!v) return food;
+    return {
+      ...food,
+      name: v.name,
+      caloriesPer100g: Math.round(v.caloriesPer100g),
+      proteinPer100g: Math.round(v.proteinPer100g * 10) / 10,
+      fatPer100g: Math.round(v.fatPer100g * 10) / 10,
+      carbsPer100g: Math.round(v.carbsPer100g * 10) / 10,
+    };
+  }, []);
+
   const handleDirectAdd = useCallback((msg: Extract<ChatMessage, { type: 'ai' }>) => {
-    const { food, grams } = msg;
+    const food = getEffectiveFood(msg);
+    const { grams } = msg;
     const nutrition = calculateNutrition(food, grams);
     const entry: MealEntry = {
       id: Date.now().toString(),
@@ -218,7 +254,7 @@ export default function AddMealScreen() {
     setMessages((prev) => prev.map((m) =>
       m.id === msg.id && m.type === 'ai' ? { ...m, added: true, addedNutrition: nutrition } : m
     ));
-  }, [addMeal, addRecent]);
+  }, [addMeal, addRecent, getEffectiveFood]);
 
   // ---- Renderers ----
 
@@ -236,11 +272,13 @@ export default function AddMealScreen() {
   );
 
   const renderAI = (m: Extract<ChatMessage, { type: 'ai' }>) => {
-    const { food, analysis, grams, added, addedNutrition } = m;
+    const { analysis, grams, added, addedNutrition, selectedVariantIdx } = m;
+    const food = getEffectiveFood(m);
     const totalKcal = Math.round((food.caloriesPer100g * grams) / 100);
     const totalP = Math.round((food.proteinPer100g * grams) / 10) / 10;
     const totalF = Math.round((food.fatPer100g * grams) / 10) / 10;
     const totalC = Math.round((food.carbsPer100g * grams) / 10) / 10;
+    const hasVariants = !!(analysis.clarifications && analysis.clarifications.length > 0);
 
     if (added) {
       const dailyTarget = calculateDailyTarget(profile);
@@ -360,6 +398,56 @@ export default function AddMealScreen() {
           <Text style={[styles.benefitsText, { color: colors.textSecondary }]}>
             {analysis.benefits}
           </Text>
+        ) : null}
+
+        {/* Variant pills — only when AI is unsure about which dish */}
+        {hasVariants ? (
+          <View style={styles.variantsBlock}>
+            <Text style={[styles.variantsLabel, { color: colors.textSecondary }]}>
+              {t('ai_clarify_hint')}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.variantsRow}
+            >
+              {analysis.clarifications!.map((v, idx) => {
+                const isSelected = selectedVariantIdx === idx;
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => selectVariant(m.id, isSelected ? null : idx)}
+                    style={[
+                      styles.variantPill,
+                      {
+                        backgroundColor: isSelected ? colors.primary : tint(colors.text, 0.04),
+                        borderColor: isSelected ? colors.primary : colors.border,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.variantName,
+                        { color: isSelected ? '#fff' : colors.text },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {v.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.variantKcal,
+                        { color: isSelected ? '#fff' : colors.textSecondary, opacity: isSelected ? 0.85 : 1 },
+                      ]}
+                    >
+                      {Math.round(v.caloriesPer100g)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
         ) : null}
 
         {/* Add button */}
@@ -614,6 +702,28 @@ const styles = StyleSheet.create({
   macroDot: { fontSize: FONT_SIZE.xs },
 
   benefitsText: { fontSize: FONT_SIZE.xs, lineHeight: 16, marginTop: SPACING.sm },
+
+  // Variant pills
+  variantsBlock: { marginTop: SPACING.sm },
+  variantsLabel: {
+    fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  variantsRow: {
+    gap: 6, paddingRight: SPACING.sm,
+  },
+  variantPill: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 14, borderWidth: 1,
+  },
+  variantName: {
+    fontSize: 12, fontWeight: '600', maxWidth: 140,
+  },
+  variantKcal: {
+    fontSize: 11, fontWeight: '500',
+  },
 
   addBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
