@@ -29,13 +29,21 @@ function loadEnv() {
 loadEnv();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-if (!GROQ_API_KEY) {
-  console.error('GROQ_API_KEY missing in .env.local');
-  process.exit(1);
-}
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.3-70b-versatile';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_MODEL = 'claude-sonnet-4-6';
+
+// Sonnet 4.6 pricing — $/token (https://www.anthropic.com/pricing)
+const ANTHROPIC_PRICING = {
+  input: 3 / 1_000_000,            // $3 / MTok
+  output: 15 / 1_000_000,          // $15 / MTok
+  cache_write_5m: 3.75 / 1_000_000, // 1.25× input
+  cache_read: 0.3 / 1_000_000,     // 0.1× input
+};
 
 // ---- prompts ---------------------------------------------------------------
 // Baseline = exact copy of current production prompt (ru) from CaloraAI/api/ai-nutrition.ts
@@ -1166,9 +1174,24 @@ function pickArg(name, def) {
 
 const promptKey = pickArg('prompt', 'baseline');
 const onlyArg = pickArg('only', null);
+const providerArg = (pickArg('provider', 'groq') || 'groq').toLowerCase();
+const maxCostArg = parseFloat(pickArg('max-cost', '0') || '0'); // 0 = no cap
 const promptText = PROMPTS[promptKey];
 if (!promptText) {
   console.error(`Unknown prompt key "${promptKey}". Available: ${Object.keys(PROMPTS).join(', ')}`);
+  process.exit(1);
+}
+
+if (providerArg !== 'groq' && providerArg !== 'anthropic') {
+  console.error(`Unknown provider "${providerArg}". Use groq or anthropic.`);
+  process.exit(1);
+}
+if (providerArg === 'groq' && !GROQ_API_KEY) {
+  console.error('GROQ_API_KEY missing in .env.local');
+  process.exit(1);
+}
+if (providerArg === 'anthropic' && !ANTHROPIC_API_KEY) {
+  console.error('ANTHROPIC_API_KEY missing in .env.local');
   process.exit(1);
 }
 
@@ -1213,7 +1236,7 @@ async function callGroq(systemPrompt, userText, attempt = 0) {
       authorization: `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: GROQ_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userText },
@@ -1235,7 +1258,98 @@ async function callGroq(systemPrompt, userText, attempt = 0) {
     throw new Error(`Groq HTTP ${res.status}: ${text.slice(0, 200)}`);
   }
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  return { text: data.choices?.[0]?.message?.content ?? '', usage: null };
+}
+
+// ---- Anthropic call (Sonnet 4.6 with prompt caching + structured outputs) ----
+
+const NUTRITION_SCHEMA = {
+  type: 'object',
+  properties: {
+    name: { type: 'string' },
+    totalGrams: { type: 'number' },
+    caloriesPer100g: { type: 'number' },
+    proteinPer100g: { type: 'number' },
+    fatPer100g: { type: 'number' },
+    carbsPer100g: { type: 'number' },
+    fiberPer100g: { type: 'number' },
+    sugarsPer100g: { type: 'number' },
+    saturatedFatPer100g: { type: 'number' },
+    saltPer100g: { type: 'number' },
+    benefits: { type: 'string' },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    clarifications: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          totalGrams: { type: 'number' },
+          caloriesPer100g: { type: 'number' },
+          proteinPer100g: { type: 'number' },
+          fatPer100g: { type: 'number' },
+          carbsPer100g: { type: 'number' },
+        },
+        required: ['name', 'totalGrams', 'caloriesPer100g', 'proteinPer100g', 'fatPer100g', 'carbsPer100g'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: [
+    'name', 'totalGrams', 'caloriesPer100g', 'proteinPer100g', 'fatPer100g', 'carbsPer100g',
+    'fiberPer100g', 'sugarsPer100g', 'saturatedFatPer100g', 'saltPer100g', 'benefits', 'confidence',
+  ],
+  additionalProperties: false,
+};
+
+async function callAnthropic(systemPrompt, userText, attempt = 0) {
+  const res = await fetch(ANTHROPIC_URL, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 1024,
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [{ role: 'user', content: userText }],
+      output_config: {
+        format: { type: 'json_schema', schema: NUTRITION_SCHEMA },
+      },
+    }),
+  });
+  if (res.status === 429 && attempt < 4) {
+    const body = await res.text().catch(() => '');
+    const waitMs = Math.min(parseRetryMs(res.headers, body) + 500, 60000);
+    process.stdout.write(`[429, retry in ${Math.round(waitMs / 1000)}s] `);
+    await sleep(waitMs);
+    return callAnthropic(systemPrompt, userText, attempt + 1);
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Anthropic HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const textBlock = data.content?.find((b) => b.type === 'text');
+  const text = textBlock?.text ?? '';
+  return { text, usage: data.usage };
+}
+
+function anthropicCallCost(usage) {
+  if (!usage) return 0;
+  const input = (usage.input_tokens || 0) * ANTHROPIC_PRICING.input;
+  const output = (usage.output_tokens || 0) * ANTHROPIC_PRICING.output;
+  const cacheWrite = (usage.cache_creation_input_tokens || 0) * ANTHROPIC_PRICING.cache_write_5m;
+  const cacheRead = (usage.cache_read_input_tokens || 0) * ANTHROPIC_PRICING.cache_read;
+  return input + output + cacheWrite + cacheRead;
 }
 
 function pctErr(actual, expected) {
@@ -1274,32 +1388,62 @@ async function main() {
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const outDir = path.join(ROOT, 'scripts', 'calibrate-results');
   fs.mkdirSync(outDir, { recursive: true });
-  const outPath = path.join(outDir, `${promptKey}-${ts}.md`);
+  const fileSuffix = providerArg === 'anthropic' ? `-anthropic` : '';
+  const outPath = path.join(outDir, `${promptKey}${fileSuffix}-${ts}.md`);
+  const modelName = providerArg === 'anthropic' ? ANTHROPIC_MODEL : GROQ_MODEL;
+  const sleepMs = providerArg === 'anthropic' ? 1500 : 7000; // Anthropic has much higher rate limits
 
   const lines = [];
-  lines.push(`# Calibration run — prompt=\`${promptKey}\` model=\`${MODEL}\``);
+  lines.push(`# Calibration run — prompt=\`${promptKey}\` provider=\`${providerArg}\` model=\`${modelName}\``);
   lines.push(`Date: ${new Date().toISOString()}`);
   lines.push(`Cases: ${cases.length}`);
   lines.push('');
 
   let totalChecks = 0;
   let passedChecks = 0;
+  let totalCost = 0;
+  let totalCacheRead = 0;
+  let totalCacheWrite = 0;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
   const perCaseSummary = [];
 
   for (let idx = 0; idx < cases.length; idx++) {
+    // Cost guard — stop before exceeding budget
+    if (maxCostArg > 0 && totalCost >= maxCostArg) {
+      console.log(`\n💰 Cost cap $${maxCostArg.toFixed(2)} reached at $${totalCost.toFixed(4)} — stopping early`);
+      break;
+    }
+
     const tc = cases[idx];
-    if (idx > 0) await sleep(7000); // stay under 12k TPM on Groq free tier
+    if (idx > 0) await sleep(sleepMs);
     process.stdout.write(`#${tc.id} [${tc.category}] "${tc.input}" ... `);
     let analysis = null;
     let raw = '';
+    let usage = null;
     let error = null;
     try {
-      raw = await callGroq(promptText, tc.input);
+      const result = providerArg === 'anthropic'
+        ? await callAnthropic(promptText, tc.input)
+        : await callGroq(promptText, tc.input);
+      raw = result.text;
+      usage = result.usage;
       analysis = extractJson(raw);
       if (!analysis) throw new Error('failed to parse JSON');
     } catch (e) {
       error = e.message;
       console.log('FAIL (' + error + ')');
+    }
+
+    // Cost tracking (Anthropic only)
+    let callCost = 0;
+    if (providerArg === 'anthropic' && usage) {
+      callCost = anthropicCallCost(usage);
+      totalCost += callCost;
+      totalCacheRead += usage.cache_read_input_tokens || 0;
+      totalCacheWrite += usage.cache_creation_input_tokens || 0;
+      totalInputTokens += usage.input_tokens || 0;
+      totalOutputTokens += usage.output_tokens || 0;
     }
 
     lines.push(`## #${tc.id} [${tc.category}] — "${tc.input}"`);
@@ -1330,13 +1474,20 @@ async function main() {
       lines.push(`| ${c.field} | ${c.actual} | ${c.expected} | ${c.err} | ${c.tol} | ${c.ok ? '✅' : '❌'} |`);
     }
     lines.push('');
-    console.log(`pass ${pass}/${checks.length}  kcal/100g=${analysis.caloriesPer100g} (exp ${tc.expected.caloriesPer100g?.value ?? '—'})`);
+
+    const costStr = providerArg === 'anthropic'
+      ? `  $${callCost.toFixed(4)} (cum $${totalCost.toFixed(4)})`
+      : '';
+    console.log(`pass ${pass}/${checks.length}  kcal/100g=${analysis.caloriesPer100g} (exp ${tc.expected.caloriesPer100g?.value ?? '—'})${costStr}`);
     perCaseSummary.push({ id: tc.id, ok: pass, total: checks.length, name: analysis.name });
   }
 
   // summary
   const head = [];
   head.push(`**Overall:** ${passedChecks}/${totalChecks} checks passed (${Math.round(passedChecks / totalChecks * 100)}%)`);
+  if (providerArg === 'anthropic') {
+    head.push(`**Cost:** $${totalCost.toFixed(4)} | tokens — input ${totalInputTokens}, output ${totalOutputTokens}, cache_write ${totalCacheWrite}, cache_read ${totalCacheRead}`);
+  }
   head.push('');
   head.push('| # | Pass | Name |');
   head.push('|---|---|---|');
@@ -1350,6 +1501,9 @@ async function main() {
 
   console.log(`\nReport: ${path.relative(ROOT, outPath)}`);
   console.log(`Overall: ${passedChecks}/${totalChecks} checks (${Math.round(passedChecks / totalChecks * 100)}%)`);
+  if (providerArg === 'anthropic') {
+    console.log(`Cost: $${totalCost.toFixed(4)} | cache hit rate: ${totalInputTokens + totalCacheRead + totalCacheWrite > 0 ? Math.round(100 * totalCacheRead / (totalInputTokens + totalCacheRead + totalCacheWrite)) : 0}%`);
+  }
 }
 
 main().catch((e) => {
