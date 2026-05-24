@@ -22,7 +22,6 @@ export const ru = {
 
   // Dashboard
   dash_remaining: 'осталось',
-  dash_over: 'перебор',
   dash_eaten: 'Потреблено',
   dash_burned: 'Сожжено',
   dash_protein: 'Белки',
@@ -298,6 +297,35 @@ export const ru = {
   feedback_sent: 'Спасибо! Ваше сообщение отправлено.',
   feedback_error: 'Не удалось отправить сообщение. Попробуйте позже.',
   feedback_btn: 'Обратная связь',
+
+  // Profile hero & nav rows
+  profile_hero_subtitle_lose: 'Снижаю вес',
+  profile_hero_subtitle_maintain: 'Поддерживаю форму',
+  profile_hero_subtitle_gain: 'Набираю массу',
+  profile_section_me: 'Информация обо мне',
+  profile_section_app: 'Настройки приложения',
+  profile_section_support: 'Поддержка',
+  profile_section_app_subtitle: 'Тема, язык, уведомления',
+  profile_section_support_subtitle: 'Обратная связь, версия, политика',
+
+  // App Settings screen
+  app_settings_title: 'Настройки',
+  app_settings_appearance: 'Внешний вид',
+  app_settings_locale: 'Регион',
+
+  // Support screen
+  support_title: 'Поддержка',
+  support_contact: 'Связаться с нами',
+  support_contact_desc: 'Идея, баг или просто спасибо',
+  support_rate: 'Оценить в сторе',
+  support_rate_desc: 'Поддержите нас отзывом',
+  support_privacy: 'Политика конфиденциальности',
+  support_privacy_desc: 'Как мы обращаемся с вашими данными',
+  support_version: 'Версия приложения',
+  support_about: 'О приложении',
+  support_about_desc: 'Calora — приложение для подсчёта калорий, рассчитанное на повседневное использование. Без рекламы, без слежки.',
+  support_rate_soon: 'Скоро будет доступно в Google Play',
+  support_privacy_soon: 'Документ публикуется при релизе в сторе',
 
   // Streak
   streak_days: 'дней подряд',

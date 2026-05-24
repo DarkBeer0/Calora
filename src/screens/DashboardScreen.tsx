@@ -316,6 +316,9 @@ const styles = StyleSheet.create({
   microHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
+  microPreview: {
+    flexDirection: 'row', flexWrap: 'wrap', marginTop: SPACING.sm, gap: SPACING.sm,
+  },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
   sectionTitle: { fontSize: FONT_SIZE.md, fontWeight: '700' },

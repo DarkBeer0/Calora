@@ -15,11 +15,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useProfile } from '../hooks/useProfile';
 import { useTheme } from '../hooks/useTheme';
-import { useI18n, LANGUAGE_LABELS } from '../i18n';
+import { useI18n } from '../i18n';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import type { Language } from '../i18n';
 import { calculateDailyTarget } from '../utils/nutrition';
-import { useNotifications } from '../hooks/useNotifications';
 import type { UserProfile } from '../types';
 
 type Gender = UserProfile['gender'];
@@ -28,7 +26,6 @@ type Goal = UserProfile['goal'];
 
 const ACTIVITY_KEYS: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'active', 'veryActive'];
 const GOAL_KEYS: Goal[] = ['lose', 'maintain', 'gain'];
-const LANGUAGE_KEYS: Language[] = ['ru', 'en', 'pl'];
 
 const ACTIVITY_ICONS: Record<ActivityLevel, string> = {
   sedentary: 'bed-outline',
@@ -38,12 +35,17 @@ const ACTIVITY_ICONS: Record<ActivityLevel, string> = {
   veryActive: 'flame-outline',
 };
 
+const GOAL_I18N_SUBTITLE: Record<Goal, 'profile_hero_subtitle_lose' | 'profile_hero_subtitle_maintain' | 'profile_hero_subtitle_gain'> = {
+  lose: 'profile_hero_subtitle_lose',
+  maintain: 'profile_hero_subtitle_maintain',
+  gain: 'profile_hero_subtitle_gain',
+};
+
 export default function ProfileScreen() {
-  const { colors, isDark, toggle: toggleTheme, tint } = useTheme();
-  const { t, lang, setLang } = useI18n();
+  const { colors, tint } = useTheme();
+  const { t } = useI18n();
   const { profile, saveProfile, isLoading } = useProfile();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { settings: notifSettings, toggleSetting: toggleNotif, isSupported: notifSupported } = useNotifications();
 
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
@@ -52,7 +54,6 @@ export default function ProfileScreen() {
   const [gender, setGender] = useState<Gender>('male');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [goal, setGoal] = useState<Goal>('maintain');
-  const [notifExpanded, setNotifExpanded] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
@@ -154,11 +155,31 @@ export default function ProfileScreen() {
     gain: 'trending-up',
   };
 
+  const heroSubtitle = `${currentProfile.age || '—'} ${t('profile_age_unit')} · ${t(GOAL_I18N_SUBTITLE[goal])}${target ? ` · ${target.calories} ${t('kcal')}` : ''}`;
+
   return (
     <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.container}>
       <Text style={[styles.title, { color: colors.text }]}>{t('profile_title')}</Text>
 
-      {/* Card 1: Body Metrics */}
+      {/* Hero block */}
+      <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.avatar, { backgroundColor: tint(colors.primary, 0.12) }]}>
+          <Ionicons name={gender === 'male' ? 'man' : 'woman'} size={28} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={1}>
+            {t('profile_section_me')}
+          </Text>
+          <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>
+            {heroSubtitle}
+          </Text>
+        </View>
+      </View>
+
+      {/* Section: About me */}
+      <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('profile_section_me')}</Text>
+
+      {/* Body Metrics card */}
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.metricsRow}>
           <NumericField label={t('profile_age')} value={age} onChange={setAge} suffix={t('profile_age_unit')} colors={colors} />
@@ -167,7 +188,6 @@ export default function ProfileScreen() {
           <NumericField label={t('water_goal')} value={waterGoal} onChange={setWaterGoal} suffix={t('water_ml')} colors={colors} />
         </View>
 
-        {/* Gender — compact */}
         <View style={styles.genderRow}>
           {(['male', 'female'] as Gender[]).map((key) => (
             <TouchableOpacity
@@ -184,7 +204,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Daily Norm — immediate feedback */}
+      {/* Daily norm */}
       {target && (
         <View style={[styles.normCard, { backgroundColor: tint(colors.primary, 0.06), borderColor: tint(colors.primary, 0.15) }]}>
           <View style={styles.normRow}>
@@ -196,9 +216,8 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Card 2: Activity & Goal */}
+      {/* Activity & Goal card */}
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        {/* Activity — icon grid */}
         <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>{t('profile_activity')}</Text>
         <View style={styles.activityGrid}>
           {ACTIVITY_KEYS.map((key) => {
@@ -218,7 +237,6 @@ export default function ProfileScreen() {
           })}
         </View>
 
-        {/* Goal — icon segments */}
         <Text style={[styles.cardLabel, { color: colors.textSecondary, marginTop: SPACING.md }]}>{t('profile_goal')}</Text>
         <View style={styles.goalRow}>
           {GOAL_KEYS.map((key) => {
@@ -239,94 +257,34 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Card 3: Preferences */}
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        {/* Theme */}
-        <TouchableOpacity style={styles.prefRow} onPress={toggleTheme} activeOpacity={0.7}>
-          <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colors.primary} />
-          <Text style={[styles.prefText, { color: colors.text }]}>
-            {isDark ? t('profile_theme_dark') : t('profile_theme_light')}
-          </Text>
-          <Ionicons name="swap-horizontal" size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-        {/* Language */}
-        <View style={styles.prefRow}>
-          <Ionicons name="globe-outline" size={20} color={colors.primary} />
-          <Text style={[styles.prefText, { color: colors.text }]}>{t('profile_language')}</Text>
-        </View>
-        <View style={styles.langRow}>
-          {LANGUAGE_KEYS.map((key) => (
-            <TouchableOpacity
-              key={key}
-              style={[styles.langBtn, { backgroundColor: lang === key ? colors.primary : tint(colors.text, 0.04) }]}
-              onPress={() => setLang(key)}
-            >
-              <Text style={[styles.langText, { color: lang === key ? '#fff' : colors.text }]}>
-                {LANGUAGE_LABELS[key]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Notifications — collapsible */}
-      {notifSupported && (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <TouchableOpacity style={styles.prefRow} onPress={() => setNotifExpanded(!notifExpanded)} activeOpacity={0.7}>
-            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
-            <Text style={[styles.prefText, { color: colors.text }]}>{t('notif_section')}</Text>
-            <Ionicons name={notifExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-          {notifExpanded && (
-            <View style={{ marginTop: SPACING.sm, gap: SPACING.xs }}>
-              {([
-                { key: 'meals' as const, icon: 'restaurant', label: t('notif_meals') },
-                { key: 'water' as const, icon: 'water', label: t('notif_water') },
-                { key: 'summary' as const, icon: 'stats-chart', label: t('notif_summary') },
-              ]).map((item) => (
-                <TouchableOpacity
-                  key={item.key}
-                  style={[styles.notifRow, { backgroundColor: tint(colors.text, 0.04) }]}
-                  onPress={() => toggleNotif(item.key, {
-                    notif_breakfast_title: t('notif_breakfast_title'), notif_breakfast_body: t('notif_breakfast_body'),
-                    notif_lunch_title: t('notif_lunch_title'), notif_lunch_body: t('notif_lunch_body'),
-                    notif_dinner_title: t('notif_dinner_title'), notif_dinner_body: t('notif_dinner_body'),
-                    notif_water_title: t('notif_water_title'), notif_water_body: t('notif_water_body'),
-                    notif_summary_title: t('notif_summary_title'), notif_summary_body: t('notif_summary_body'),
-                  })}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name={item.icon as any} size={16} color={notifSettings[item.key] ? colors.primary : colors.textSecondary} />
-                  <Text style={[styles.notifLabel, { color: colors.text }]}>{item.label}</Text>
-                  <View style={[styles.notifDot, { backgroundColor: notifSettings[item.key] ? colors.primary : colors.border }]}>
-                    {notifSettings[item.key] && <Ionicons name="checkmark" size={12} color="#fff" />}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Feedback */}
-      <TouchableOpacity
-        style={[styles.feedbackBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        onPress={() => navigation.navigate('Feedback')}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
-        <Text style={[styles.feedbackText, { color: colors.text }]}>{t('feedback_btn')}</Text>
-        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-      </TouchableOpacity>
-
       {/* Save */}
       <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.primary }]} onPress={handleSave} activeOpacity={0.8}>
         <Ionicons name="checkmark" size={20} color="#fff" />
         <Text style={styles.saveBtnText}>{t('save')}</Text>
       </TouchableOpacity>
+
+      {/* Section: Other */}
+      <Text style={[styles.sectionLabel, { color: colors.textSecondary, marginTop: SPACING.lg }]}>{t('profile_section_app')}</Text>
+
+      <NavRow
+        icon="settings-outline"
+        iconColor={colors.primary}
+        title={t('profile_section_app')}
+        subtitle={t('profile_section_app_subtitle')}
+        onPress={() => navigation.navigate('AppSettings')}
+        colors={colors}
+        tint={tint}
+      />
+
+      <NavRow
+        icon="help-buoy-outline"
+        iconColor={colors.water}
+        title={t('profile_section_support')}
+        subtitle={t('profile_section_support_subtitle')}
+        onPress={() => navigation.navigate('Support')}
+        colors={colors}
+        tint={tint}
+      />
 
       <View style={{ height: 20 }} />
 
@@ -376,6 +334,32 @@ function NormBadge({ value, label, color, suffix }: { value: number; label: stri
   );
 }
 
+function NavRow({
+  icon, iconColor, title, subtitle, onPress, colors, tint,
+}: {
+  icon: any; iconColor: string; title: string; subtitle: string;
+  onPress: () => void;
+  colors: { surface: string; border: string; text: string; textSecondary: string };
+  tint: (color: string, opacity: number) => string;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.navRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.navIcon, { backgroundColor: tint(iconColor, 0.12) }]}>
+        <Ionicons name={icon} size={20} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.navTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.navSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+    </TouchableOpacity>
+  );
+}
+
 /* ---- Styles ---- */
 
 const styles = StyleSheet.create({
@@ -384,6 +368,29 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontSize: FONT_SIZE.md },
   title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: SPACING.md },
+
+  // Hero
+  hero: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    borderRadius: 16, borderWidth: 1,
+    padding: SPACING.md, marginBottom: SPACING.lg,
+  },
+  avatar: {
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  heroTitle: { fontSize: FONT_SIZE.md, fontWeight: '700' },
+  heroSubtitle: { fontSize: FONT_SIZE.xs, marginTop: 2 },
+
+  // Section labels
+  sectionLabel: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.xs,
+    marginLeft: SPACING.xs,
+  },
 
   // Cards
   card: {
@@ -434,31 +441,18 @@ const styles = StyleSheet.create({
   },
   goalText: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
-  // Preferences
-  prefRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  prefText: { flex: 1, fontSize: FONT_SIZE.sm, fontWeight: '600' },
-  divider: { height: 1, marginVertical: SPACING.sm },
-  langRow: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.xs },
-  langBtn: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 8 },
-  langText: { fontSize: FONT_SIZE.xs, fontWeight: '600' },
-
-  // Notifications
-  notifRow: {
+  // Nav rows (sub-screens)
+  navRow: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    padding: SPACING.sm, borderRadius: 10,
+    borderRadius: 16, borderWidth: 1,
+    padding: SPACING.md, marginBottom: SPACING.sm,
   },
-  notifLabel: { flex: 1, fontSize: FONT_SIZE.xs, fontWeight: '500' },
-  notifDot: {
-    width: 20, height: 20, borderRadius: 10,
+  navIcon: {
+    width: 40, height: 40, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
   },
-
-  // Feedback
-  feedbackBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    borderRadius: 16, borderWidth: 1, padding: SPACING.md, marginBottom: SPACING.sm,
-  },
-  feedbackText: { flex: 1, fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  navTitle: { fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  navSubtitle: { fontSize: 11, marginTop: 2 },
 
   // Save
   saveBtn: {

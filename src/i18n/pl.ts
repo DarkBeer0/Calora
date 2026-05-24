@@ -21,7 +21,6 @@ export const pl: Record<TranslationKey, string> = {
   tab_profile: 'Profil',
 
   dash_remaining: 'pozostało',
-  dash_over: 'przekroczono',
   dash_eaten: 'Spożyto',
   dash_burned: 'Spalono',
   dash_protein: 'Białko',
@@ -277,6 +276,35 @@ export const pl: Record<TranslationKey, string> = {
   feedback_sent: 'Dziękujemy! Twoja wiadomość została wysłana.',
   feedback_error: 'Nie udało się wysłać wiadomości. Spróbuj później.',
   feedback_btn: 'Kontakt',
+
+  // Profile hero & nav rows
+  profile_hero_subtitle_lose: 'Redukuję wagę',
+  profile_hero_subtitle_maintain: 'Utrzymuję formę',
+  profile_hero_subtitle_gain: 'Buduję masę',
+  profile_section_me: 'O mnie',
+  profile_section_app: 'Ustawienia aplikacji',
+  profile_section_support: 'Wsparcie',
+  profile_section_app_subtitle: 'Motyw, język, powiadomienia',
+  profile_section_support_subtitle: 'Kontakt, wersja, polityka',
+
+  // App Settings screen
+  app_settings_title: 'Ustawienia',
+  app_settings_appearance: 'Wygląd',
+  app_settings_locale: 'Region',
+
+  // Support screen
+  support_title: 'Wsparcie',
+  support_contact: 'Skontaktuj się',
+  support_contact_desc: 'Pomysł, błąd lub po prostu dziękuję',
+  support_rate: 'Oceń w sklepie',
+  support_rate_desc: 'Wesprzyj nas recenzją',
+  support_privacy: 'Polityka prywatności',
+  support_privacy_desc: 'Jak przetwarzamy Twoje dane',
+  support_version: 'Wersja aplikacji',
+  support_about: 'O aplikacji',
+  support_about_desc: 'Calora to licznik kalorii do codziennego użytku. Bez reklam, bez śledzenia.',
+  support_rate_soon: 'Wkrótce w Google Play',
+  support_privacy_soon: 'Dokument zostanie opublikowany przy wydaniu w sklepie',
 
   // Streak
   streak_days: 'dni z rzędu',

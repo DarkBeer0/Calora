@@ -19,6 +19,8 @@ import AnalyticsScreen from '../screens/AnalyticsScreen';
 import RecipesScreen from '../screens/RecipesScreen';
 import AddRecipeScreen from '../screens/AddRecipeScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
+import AppSettingsScreen from '../screens/AppSettingsScreen';
+import SupportScreen from '../screens/SupportScreen';
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -31,6 +33,8 @@ export type RootStackParamList = {
   Analytics: undefined;
   Recipes: undefined;
   Feedback: undefined;
+  AppSettings: undefined;
+  Support: undefined;
 };
 
 export type TabParamList = {
@@ -133,6 +137,8 @@ export default function RootNavigator() {
         <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: t('tab_analytics'), presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="Recipes" component={RecipesScreen} options={{ title: t('recipe_select'), presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: t('feedback_title'), presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="AppSettings" component={AppSettingsScreen} options={{ title: t('app_settings_title'), animation: 'slide_from_right' }} />
+        <Stack.Screen name="Support" component={SupportScreen} options={{ title: t('support_title'), animation: 'slide_from_right' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

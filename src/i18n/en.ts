@@ -21,7 +21,6 @@ export const en: Record<TranslationKey, string> = {
   tab_profile: 'Profile',
 
   dash_remaining: 'remaining',
-  dash_over: 'over limit',
   dash_eaten: 'Eaten',
   dash_burned: 'Burned',
   dash_protein: 'Protein',
@@ -277,6 +276,35 @@ export const en: Record<TranslationKey, string> = {
   feedback_sent: 'Thank you! Your message has been sent.',
   feedback_error: 'Failed to send message. Please try later.',
   feedback_btn: 'Feedback',
+
+  // Profile hero & nav rows
+  profile_hero_subtitle_lose: 'Losing weight',
+  profile_hero_subtitle_maintain: 'Maintaining shape',
+  profile_hero_subtitle_gain: 'Gaining muscle',
+  profile_section_me: 'About me',
+  profile_section_app: 'App settings',
+  profile_section_support: 'Support',
+  profile_section_app_subtitle: 'Theme, language, notifications',
+  profile_section_support_subtitle: 'Feedback, version, policy',
+
+  // App Settings screen
+  app_settings_title: 'Settings',
+  app_settings_appearance: 'Appearance',
+  app_settings_locale: 'Region',
+
+  // Support screen
+  support_title: 'Support',
+  support_contact: 'Contact us',
+  support_contact_desc: 'Idea, bug, or just thanks',
+  support_rate: 'Rate in the store',
+  support_rate_desc: 'Support us with a review',
+  support_privacy: 'Privacy policy',
+  support_privacy_desc: 'How we handle your data',
+  support_version: 'App version',
+  support_about: 'About the app',
+  support_about_desc: 'Calora is a calorie tracker built for daily use. No ads, no tracking.',
+  support_rate_soon: 'Coming soon on Google Play',
+  support_privacy_soon: 'Document will be published at store release',
 
   // Streak
   streak_days: 'day streak',
