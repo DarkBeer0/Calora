@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Animated, Easing } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,9 +8,21 @@ import { SPACING, FONT_SIZE } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../i18n';
 import { getProductByBarcode } from '../services/openfoodfacts';
+import CustomAlert, { type AlertButton } from '../components/CustomAlert';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const MIN_LOADING_MS = 700;
+const REJECT_COOLDOWN_MS = 4000;
+
+interface AlertState {
+  visible: boolean;
+  title: string;
+  message: string;
+  icon: 'alert-circle' | 'information-circle';
+  buttons: AlertButton[];
+}
 
 export default function BarcodeScannerScreen() {
   const navigation = useNavigation<Nav>();
@@ -19,34 +31,77 @@ export default function BarcodeScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState<AlertState>({
+    visible: false, title: '', message: '', icon: 'information-circle', buttons: [],
+  });
+
+  // Refs guard against camera firing the same callback multiple times before React state updates.
+  const busyRef = useRef(false);
+  const lastRejectedRef = useRef<{ code: string; at: number } | null>(null);
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (scanned || loading) return;
+    if (busyRef.current) return;
+
+    // Cooldown: skip the same barcode if we just told the user it isn't found.
+    const recent = lastRejectedRef.current;
+    if (recent && recent.code === data && Date.now() - recent.at < REJECT_COOLDOWN_MS) {
+      return;
+    }
+
+    busyRef.current = true;
     setScanned(true);
     setLoading(true);
 
+    const start = Date.now();
     try {
       const food = await getProductByBarcode(data);
-      if (food) {
-        navigation.replace('ConfirmMeal', { food });
-      } else {
-        Alert.alert(
-          t('scanner_not_found'),
-          t('scanner_not_found_msg'),
-          [
-            { text: t('cancel'), onPress: () => setScanned(false) },
-            {
-              text: t('add'),
-              onPress: () => navigation.replace('AddCustomFood', { barcode: data }),
-            },
-          ]
-        );
-        setLoading(false);
+      const elapsed = Date.now() - start;
+      if (elapsed < MIN_LOADING_MS) {
+        await new Promise((r) => setTimeout(r, MIN_LOADING_MS - elapsed));
       }
-    } catch {
-      Alert.alert(t('error'), t('scanner_error'));
-      setScanned(false);
+
+      if (food) {
+        setLoading(false);
+        navigation.replace('ConfirmMeal', { food });
+        return;
+      }
+
+      lastRejectedRef.current = { code: data, at: Date.now() };
       setLoading(false);
+      setAlert({
+        visible: true,
+        title: t('scanner_not_found'),
+        message: t('scanner_not_found_msg'),
+        icon: 'information-circle',
+        buttons: [
+          { text: t('cancel'), style: 'cancel', onPress: () => {
+            busyRef.current = false;
+            setScanned(false);
+          } },
+          { text: t('add'), onPress: () => {
+            busyRef.current = false;
+            navigation.replace('AddCustomFood', { barcode: data });
+          } },
+        ],
+      });
+    } catch {
+      const elapsed = Date.now() - start;
+      if (elapsed < MIN_LOADING_MS) {
+        await new Promise((r) => setTimeout(r, MIN_LOADING_MS - elapsed));
+      }
+      setLoading(false);
+      setAlert({
+        visible: true,
+        title: t('error'),
+        message: t('scanner_error'),
+        icon: 'alert-circle',
+        buttons: [
+          { text: 'OK', onPress: () => {
+            busyRef.current = false;
+            setScanned(false);
+          } },
+        ],
+      });
     }
   };
 
@@ -87,17 +142,76 @@ export default function BarcodeScannerScreen() {
             <View style={styles.sideOverlay} />
           </View>
           <View style={styles.bottomOverlay}>
-            <Text style={styles.hint}>
-              {loading ? t('scanner_searching') : t('scanner_hint')}
-            </Text>
-            {scanned && !loading && (
-              <TouchableOpacity style={[styles.rescanBtn, { backgroundColor: colors.primary }]} onPress={() => setScanned(false)}>
+            {loading ? (
+              <View style={styles.loadingRow}>
+                <Text style={styles.hint}>{t('scanner_searching')}</Text>
+                <PulsingDots color={colors.primary} />
+              </View>
+            ) : (
+              <Text style={styles.hint}>{t('scanner_hint')}</Text>
+            )}
+            {scanned && !loading && !alert.visible && (
+              <TouchableOpacity
+                style={[styles.rescanBtn, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  busyRef.current = false;
+                  setScanned(false);
+                }}
+              >
                 <Text style={styles.rescanText}>{t('scanner_rescan')}</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
       </CameraView>
+
+      <CustomAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        icon={alert.icon}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert((a) => ({ ...a, visible: false }))}
+      />
+    </View>
+  );
+}
+
+function PulsingDots({ color }: { color: string }) {
+  const d1 = useRef(new Animated.Value(0.3)).current;
+  const d2 = useRef(new Animated.Value(0.3)).current;
+  const d3 = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const pulse = (anim: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, {
+            toValue: 1, duration: 400,
+            easing: Easing.inOut(Easing.ease), useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0.3, duration: 400,
+            easing: Easing.inOut(Easing.ease), useNativeDriver: true,
+          }),
+        ]),
+      );
+    const a1 = pulse(d1, 0);
+    const a2 = pulse(d2, 150);
+    const a3 = pulse(d3, 300);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, []);
+
+  return (
+    <View style={styles.dotsRow}>
+      {[d1, d2, d3].map((d, i) => (
+        <Animated.View
+          key={i}
+          style={[styles.dot, { backgroundColor: color, opacity: d }]}
+        />
+      ))}
     </View>
   );
 }
@@ -124,6 +238,9 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', paddingTop: SPACING.lg,
   },
   hint: { color: '#fff', fontSize: FONT_SIZE.md, fontWeight: '500' },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 10 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   rescanBtn: { marginTop: SPACING.md, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: 12 },
   rescanText: { color: '#fff', fontWeight: '600', fontSize: FONT_SIZE.sm },
   corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE },
